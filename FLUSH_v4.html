@@ -1,0 +1,485 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FLUSH v4 — Liquidation Fade Engine</title>
+<style>
+  :root{
+    --bg:#0d0b07; --panel:#161109; --panel2:#1d160c; --line:#2e2412;
+    --amber:#f5a623; --fire:#ff5e2b; --ember:#c97b1e;
+    --dim:#8a7a5c; --faint:#5a4e3a;
+    --green:#4ade80; --red:#f87171; --white:#efe6d4;
+    --mono:ui-monospace,'Cascadia Code','JetBrains Mono','Fira Code',Menlo,Consolas,monospace;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:var(--bg);color:var(--white);font-family:var(--mono);font-size:13px;line-height:1.5;padding:14px;max-width:900px;margin:0 auto}
+
+  .hdr{display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--line);padding-bottom:10px;margin-bottom:14px;flex-wrap:wrap;gap:8px}
+  .hdr h1{font-size:20px;letter-spacing:4px;color:var(--amber);font-weight:700}
+  .hdr h1 span{color:var(--fire)}
+  .hdr .sub{color:var(--dim);font-size:11px;letter-spacing:1px}
+  button{background:var(--panel2);border:1px solid var(--amber);color:var(--amber);font-family:var(--mono);font-size:13px;letter-spacing:2px;padding:10px 18px;border-radius:4px;cursor:pointer}
+  button:hover{background:var(--amber);color:var(--bg)}
+  button:disabled{opacity:.4;cursor:wait}
+  button.small{padding:3px 8px;font-size:10px;letter-spacing:1px}
+  button:focus-visible{outline:2px solid var(--fire);outline-offset:2px}
+
+  .lbl{font-size:10px;letter-spacing:2px;color:var(--dim);text-transform:uppercase;margin-bottom:6px}
+  .panel{background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:12px;margin-bottom:12px}
+  .hint{font-size:10px;color:var(--faint);margin-top:6px}
+  .src{font-size:10px;color:var(--faint);margin-top:8px}
+  .src b{color:var(--dim);font-weight:400}
+
+  /* network banner */
+  .netwarn{display:none;background:#2a0f08;border:1px solid var(--red);color:var(--red);border-radius:6px;padding:10px 12px;font-size:12px;margin-bottom:12px}
+
+  /* key row */
+  .keyrow{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+  input[type=password]{background:var(--bg);border:1px solid var(--line);color:var(--amber);font-family:var(--mono);font-size:12px;padding:6px 10px;border-radius:4px;flex:1;min-width:160px}
+  input:focus{outline:1px solid var(--amber)}
+
+  /* price grid */
+  .pricegrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px}
+  .pv{background:var(--panel2);border:1px solid var(--line);border-radius:4px;padding:8px 10px}
+  .pv .k{font-size:10px;color:var(--faint);letter-spacing:1px}
+  .pv .v{font-size:17px;color:var(--white);margin-top:2px;font-variant-numeric:tabular-nums}
+  .pv .v.pos{color:var(--green)} .pv .v.neg{color:var(--red)}
+
+  /* master signal */
+  .master{border-radius:6px;padding:18px;text-align:center;margin-bottom:12px;border:1px solid var(--line);background:var(--panel)}
+  .master .big{font-size:22px;letter-spacing:5px;font-weight:700;color:var(--faint)}
+  .master .why{font-size:11px;color:var(--dim);margin-top:5px}
+  .master.amber{border-color:var(--ember)} .master.amber .big{color:var(--amber)}
+  .master.fire{border-color:var(--fire);background:linear-gradient(180deg,#241205,#160d05)}
+  .master.fire .big{color:var(--fire);animation:pulse 1.2s ease-in-out infinite}
+  .master.sell{border-color:var(--ember);background:linear-gradient(180deg,#20140a,#140d06)}
+  .master.sell .big{color:var(--ember)}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.55}}
+  @media(prefers-reduced-motion:reduce){.master.fire .big{animation:none}}
+
+  /* ladder */
+  .tier{display:grid;grid-template-columns:14px 110px 1fr auto;gap:10px;align-items:center;padding:10px 8px;border-bottom:1px solid #1a140a}
+  .tier:last-child{border-bottom:none}
+  .dot{width:10px;height:10px;border-radius:50%;background:var(--faint)}
+  .tier.elevated .dot{background:var(--amber);box-shadow:0 0 6px var(--amber)}
+  .tier.buy .dot{background:var(--fire);box-shadow:0 0 8px var(--fire);animation:pulse 1.2s infinite}
+  .tier.sell .dot{background:var(--ember);box-shadow:0 0 8px var(--ember)}
+  .tname{font-size:11px;letter-spacing:1px;color:var(--white)}
+  .tname small{display:block;color:var(--faint);font-size:9px;letter-spacing:.5px}
+  .tread{font-size:12px;color:var(--dim);font-variant-numeric:tabular-nums}
+  .tread b{color:var(--white);font-weight:400}
+  .tread .edge{color:var(--faint);font-size:10px;display:block}
+  .tstate{font-size:10px;letter-spacing:1px;padding:3px 10px;border-radius:3px;border:1px solid var(--faint);color:var(--faint);white-space:nowrap}
+  .tier.elevated .tstate{border-color:var(--amber);color:var(--amber)}
+  .tier.buy .tstate{border-color:var(--fire);color:var(--fire)}
+  .tier.sell .tstate{border-color:var(--ember);color:var(--ember)}
+
+  /* histogram */
+  .histo{display:flex;align-items:flex-end;gap:2px;height:70px;margin-top:8px;border-bottom:1px solid var(--line);padding-bottom:1px}
+  .hb{flex:1;min-width:2px;background:var(--faint);border-radius:1px 1px 0 0}
+  .hb.long{background:var(--red)} .hb.short{background:var(--green)} .hb.now{outline:1px solid var(--amber)}
+  .hlab{display:flex;justify-content:space-between;font-size:9px;color:var(--faint);margin-top:3px}
+
+  /* backtest tables */
+  table{width:100%;border-collapse:collapse;font-size:11px;margin-top:6px}
+  th{color:var(--faint);font-weight:400;text-align:right;padding:4px 6px;border-bottom:1px solid var(--line);letter-spacing:1px;font-size:10px}
+  th:first-child,td:first-child{text-align:left}
+  td{padding:4px 6px;border-bottom:1px solid #1a140a;text-align:right;font-variant-numeric:tabular-nums;color:var(--dim)}
+  td b{color:var(--white);font-weight:400}
+  td .pos{color:var(--green)} td .neg{color:var(--red)}
+  .foot{color:var(--faint);font-size:10px;border-top:1px solid var(--line);padding-top:10px;margin-top:4px}
+  .foot b{color:var(--dim);font-weight:400}
+</style>
+</head>
+<body>
+
+<div class="hdr">
+  <div>
+    <h1>FLU<span>SH</span> <span style="font-size:11px;letter-spacing:1px">v4</span></h1>
+    <div class="sub">LIQUIDATION FADE ENGINE · BTC · SINGLE SOURCE: COINALYZE</div>
+  </div>
+  <button id="refresh">↻ REFRESH ALL</button>
+</div>
+
+<div class="netwarn" id="netwarn">ALL NETWORK ROUTES BLOCKED — this viewer has no internet access. Open this file in Chrome (or host it: netlify.com/drop) and everything below populates.</div>
+
+<!-- KEY -->
+<div class="panel">
+  <div class="lbl">Coinalyze API key (saved locally, one time)</div>
+  <div class="keyrow">
+    <input type="password" id="cakey" placeholder="paste key">
+    <button class="small" id="savekey">SAVE</button>
+    <span class="hint" id="keystate" style="margin:0"></span>
+  </div>
+</div>
+
+<!-- PRICE BLOCK -->
+<div class="panel">
+  <div class="lbl">Verified live price block</div>
+  <div class="pricegrid">
+    <div class="pv"><div class="k">PERP (BTCUSDT.P)</div><div class="v" id="perp">—</div></div>
+    <div class="pv"><div class="k">SPOT</div><div class="v" id="spot">—</div></div>
+    <div class="pv"><div class="k">BASIS (bps)</div><div class="v" id="basis">—</div></div>
+    <div class="pv"><div class="k">FUNDING</div><div class="v" id="funding">—</div></div>
+    <div class="pv"><div class="k">24H LIQS (AGG)</div><div class="v" id="liq24">—</div></div>
+  </div>
+  <div class="src">SOURCE: <b id="pricesrc">Coinalyze — not yet fetched</b> · VERIFIED: <b id="verified">never</b></div>
+</div>
+
+<!-- MASTER SIGNAL -->
+<div class="master" id="master">
+  <div class="big" id="mtext">STAND DOWN</div>
+  <div class="why" id="mwhy">No flush in progress on any timeframe. The edge only exists when someone is being forced out.</div>
+</div>
+
+<!-- SIGNAL LADDER -->
+<div class="panel">
+  <div class="lbl">Signal ladder — macro → micro</div>
+
+  <div class="tier" id="t_macro">
+    <div class="dot"></div>
+    <div class="tname">MACRO<small>daily flush · hold days–weeks</small></div>
+    <div class="tread" id="r_macro">—</div>
+    <div class="tstate" id="s_macro">IDLE</div>
+  </div>
+
+  <div class="tier" id="t_swing">
+    <div class="dot"></div>
+    <div class="tname">SWING<small>24h rolling · hold 1–3 days</small></div>
+    <div class="tread" id="r_swing">—</div>
+    <div class="tstate" id="s_swing">IDLE</div>
+  </div>
+
+  <div class="tier" id="t_tact">
+    <div class="dot"></div>
+    <div class="tname">TACTICAL<small>1h flush · hold hours</small></div>
+    <div class="tread" id="r_tact">—</div>
+    <div class="tstate" id="s_tact">IDLE</div>
+  </div>
+
+  <div class="tier" id="t_micro">
+    <div class="dot"></div>
+    <div class="tname">MICRO<small>15min burst · scalp</small></div>
+    <div class="tread" id="r_micro">—</div>
+    <div class="tstate" id="s_micro">IDLE</div>
+  </div>
+
+  <div class="histo" id="histo"></div>
+  <div class="hlab"><span>−48h</span><span>hourly liqs · red = longs rekt · green = shorts rekt</span><span>now</span></div>
+  <div class="hint" id="laddersrc">Thresholds are calibrated from the backtest below on every refresh — the trigger level for each tier is the smallest flush size that was historically profitable to fade.</div>
+</div>
+
+<!-- BACKTEST -->
+<div class="panel">
+  <div class="lbl">Does fading pay? — computed live from history on every refresh</div>
+
+  <div style="font-size:11px;color:var(--dim);margin-bottom:2px">HOURLY LONG-FLUSHES (buy the flush, ~60 days of 1h data)</div>
+  <table id="bt_h"><thead><tr><th>1h flush ≥</th><th>N</th><th>+1h</th><th>+4h</th><th>+24h</th><th>win% (4h)</th></tr></thead><tbody></tbody></table>
+
+  <div style="font-size:11px;color:var(--dim);margin:12px 0 2px">DAILY LONG-FLUSHES (buy the flush, ~400 days of daily data)</div>
+  <table id="bt_d"><thead><tr><th>daily flush ≥</th><th>N</th><th>+1d</th><th>+3d</th><th>+7d</th><th>win% (3d)</th></tr></thead><tbody></tbody></table>
+
+  <div class="hint" id="btnote">Long-flush = hours/days where liquidations were long-dominated. Returns are BTC perp close-to-close after the flush bar. Small N = weak evidence — treat accordingly.</div>
+</div>
+
+<div class="foot">
+  DOCTRINE: <b>spot execution only — crypto futures is a banned CODEX category.</b>
+  Larger flush + longer timeframe = more durable edge; micro signals are noise-prone and sized accordingly.
+  Every value carries source + verification timestamp per standing rule; anything unfetched stays "—", never stale.
+</div>
+
+<script>
+(function(){
+  const $=id=>document.getElementById(id);
+  const M=1e6, B=1e9;
+  const fmt$=n=>n>=B?'$'+(n/B).toFixed(2)+'B':n>=M?'$'+(n/M).toFixed(0)+'M':n>=1e3?'$'+(n/1e3).toFixed(0)+'K':'$'+(n||0).toFixed(0);
+  const fmtP=n=>n.toLocaleString('en-US',{maximumFractionDigits:0});
+  const pct=n=>((n>=0?'+':'')+(n*100).toFixed(2)+'%');
+  const cls=n=>n>=0?'pos':'neg';
+
+  // ---------- key storage ----------
+  let memKey='';
+  async function kvGet(k){
+    try{ if(window.storage){const r=await window.storage.get(k);return r?r.value:null;} }catch(e){}
+    try{ if(window.localStorage) return localStorage.getItem(k); }catch(e){}
+    return memKey||null;
+  }
+  async function kvSet(k,v){
+    try{ if(window.storage){await window.storage.set(k,v);return;} }catch(e){}
+    try{ if(window.localStorage){localStorage.setItem(k,v);return;} }catch(e){}
+    memKey=v;
+  }
+
+  // ---------- fetch with CORS fallback ----------
+  let anyRouteWorked=false;
+  async function ca(path, params, key){
+    const q=new URLSearchParams(params); q.set('api_key',key);
+    const url='https://api.coinalyze.net/v1/'+path+'?'+q.toString();
+    const attempts=[url,
+      'https://corsproxy.io/?url='+encodeURIComponent(url),
+      'https://api.allorigins.win/raw?url='+encodeURIComponent(url)];
+    for(const u of attempts){
+      try{
+        const r=await fetch(u);
+        if(!r.ok) continue;
+        const j=await r.json();
+        if(j!==null && j!==undefined){ anyRouteWorked=true; return j; }
+      }catch(e){}
+    }
+    return null;
+  }
+
+  // ---------- symbols ----------
+  const LIQ_SYMS='BTCUSDT_PERP.A,BTCUSDT_PERP.6,BTCUSDT_PERP.3,BTCUSDT_PERP.F';
+  const PERP='BTCUSDT_PERP.A';
+  const SPOT_CANDIDATES=['BTCUSDT.A','BTCUSDT.C','BTCUSDT.6'];
+
+  // ---------- state ----------
+  let H=null;    // merged hourly buckets [{t,l,s}] ~60d
+  let D=null;    // merged daily buckets ~400d
+  let F=null;    // 5min buckets last 6h
+  let ohlcH=null;// hourly perp closes map t->close
+  let ohlcD=null;// daily perp closes map t->close
+  let perpPx=null, spotPx=null, basisBps=null, fundPct=null;
+  let btH=null, btD=null; // backtest results
+  let calib={tact:150*M, swing:600*M, macro:1*B, micro:40*M};
+
+  function mergeLiq(arr){
+    const map={};
+    (arr||[]).forEach(sym=>(sym.history||[]).forEach(h=>{
+      if(!map[h.t]) map[h.t]={t:h.t,l:0,s:0};
+      map[h.t].l+=(h.l||0); map[h.t].s+=(h.s||0);
+    }));
+    return Object.values(map).sort((a,b)=>a.t-b.t);
+  }
+  function closesMap(arr, symbol){
+    const rec=(arr||[]).find(x=>x.symbol===symbol)||arr&&arr[0];
+    const m={};
+    if(rec)(rec.history||[]).forEach(h=>{m[h.t]=h.c;});
+    return m;
+  }
+
+  // ---------- master refresh ----------
+  async function refreshAll(){
+    const btn=$('refresh'); btn.disabled=true; btn.textContent='FETCHING…';
+    anyRouteWorked=false;
+    try{
+      const key=await kvGet('coinalyze_key');
+      if(!key){ $('keystate').textContent='no key saved — paste it and hit SAVE'; return; }
+      if($('cakey').value==='') $('cakey').value=key;
+      $('keystate').textContent='key loaded';
+      const now=Math.floor(Date.now()/1000);
+
+      // fire the batch (7 calls, well under 40/min)
+      const [liqH, liqD, liqF, oh, od, o1, fr] = await Promise.all([
+        ca('liquidation-history',{symbols:LIQ_SYMS, interval:'1hour', from:now-60*86400, to:now, convert_to_usd:'true'}, key),
+        ca('liquidation-history',{symbols:LIQ_SYMS, interval:'daily', from:now-400*86400, to:now, convert_to_usd:'true'}, key),
+        ca('liquidation-history',{symbols:LIQ_SYMS, interval:'5min', from:now-6*3600, to:now, convert_to_usd:'true'}, key),
+        ca('ohlcv-history',{symbols:PERP, interval:'1hour', from:now-60*86400, to:now}, key),
+        ca('ohlcv-history',{symbols:PERP, interval:'daily', from:now-400*86400, to:now}, key),
+        ca('ohlcv-history',{symbols:PERP+','+SPOT_CANDIDATES.join(','), interval:'1min', from:now-1800, to:now}, key),
+        ca('funding-rate',{symbols:PERP}, key)
+      ]);
+
+      if(!anyRouteWorked){ $('netwarn').style.display='block'; return; }
+      $('netwarn').style.display='none';
+
+      H=mergeLiq(liqH); D=mergeLiq(liqD); F=mergeLiq(liqF);
+      ohlcH=closesMap(oh,PERP); ohlcD=closesMap(od,PERP);
+
+      // live prices from 1min bars
+      if(Array.isArray(o1)){
+        const perpRec=o1.find(x=>x.symbol===PERP);
+        if(perpRec&&perpRec.history&&perpRec.history.length) perpPx=perpRec.history[perpRec.history.length-1].c;
+        for(const sc of SPOT_CANDIDATES){
+          const r=o1.find(x=>x.symbol===sc);
+          if(r&&r.history&&r.history.length){ spotPx=r.history[r.history.length-1].c; break; }
+        }
+      }
+      basisBps=(perpPx&&spotPx)?(perpPx-spotPx)/spotPx*10000:null;
+      if(Array.isArray(fr)&&fr.length&&typeof fr[0].value==='number') fundPct=fr[0].value;
+
+      renderPrices();
+      runBacktests();
+      renderLadder();
+      $('verified').textContent=new Date().toLocaleString('en-AU',{hour12:false})+' local';
+      $('pricesrc').textContent='Coinalyze REST (BTC perps agg: Binance/Bybit/OKX/Bitget)';
+    } finally {
+      btn.disabled=false; btn.textContent='↻ REFRESH ALL';
+    }
+  }
+
+  function renderPrices(){
+    if(perpPx) $('perp').textContent=fmtP(perpPx);
+    if(spotPx) $('spot').textContent=fmtP(spotPx);
+    if(basisBps!==null){ const b=$('basis'); b.textContent=(basisBps>=0?'+':'')+basisBps.toFixed(1); b.className='v '+(basisBps<0?'neg':'pos'); }
+    if(fundPct!==null){ const f=$('funding'); f.textContent=(fundPct>=0?'+':'')+fundPct.toFixed(4)+'%'; f.className='v '+(fundPct<0?'neg':'pos'); }
+    if(H&&H.length){
+      const cut=Math.floor(Date.now()/1000)-86400;
+      const t24=H.filter(x=>x.t>=cut).reduce((a,x)=>a+x.l+x.s,0);
+      $('liq24').textContent=fmt$(t24);
+    }
+  }
+
+  // ---------- backtests ----------
+  function backtest(buckets, closes, thresholds, horizons, barSec){
+    // long-dominated flush bars only (l > s): fade = buy at bar close
+    const ts=Object.keys(closes).map(Number).sort((a,b)=>a-b);
+    const idx={}; ts.forEach((t,i)=>idx[t]=i);
+    return thresholds.map(th=>{
+      const evs=[];
+      buckets.forEach(bk=>{
+        const tot=bk.l+bk.s;
+        if(tot>=th && bk.l>bk.s && idx[bk.t]!==undefined){
+          const i=idx[bk.t], entry=closes[ts[i]];
+          if(!entry) return;
+          const rets=horizons.map(h=> (i+h<ts.length && closes[ts[i+h]]) ? (closes[ts[i+h]]-entry)/entry : null);
+          evs.push(rets);
+        }
+      });
+      const agg=horizons.map((h,k)=>{
+        const v=evs.map(e=>e[k]).filter(x=>x!==null);
+        if(!v.length) return {avg:null,win:null,n:0};
+        return {avg:v.reduce((a,b)=>a+b,0)/v.length, win:v.filter(x=>x>0).length/v.length, n:v.length};
+      });
+      return {th, n:evs.length, agg};
+    });
+  }
+
+  function runBacktests(){
+    if(H&&ohlcH) btH=backtest(H, ohlcH, [50*M,150*M,300*M], [1,4,24], 3600);
+    if(D&&ohlcD) btD=backtest(D, ohlcD, [500*M,1*B,2*B], [1,3,7], 86400);
+
+    fillTable('bt_h', btH, ['+1h','+4h','+24h'], 1);
+    fillTable('bt_d', btD, ['+1d','+3d','+7d'], 1);
+
+    // calibrate ladder triggers: smallest threshold with positive avg return at mid horizon and n>=5
+    const pick=(bt, def)=>{
+      if(!bt) return def;
+      for(const row of bt){ if(row.n>=5 && row.agg[1].avg!==null && row.agg[1].avg>0) return row.th; }
+      return def;
+    };
+    calib.tact = pick(btH, 150*M);
+    calib.macro = pick(btD, 1*B);
+    calib.swing = Math.max(600*M, calib.tact*3);
+    calib.micro = Math.max(30*M, Math.round(calib.tact/4/M)*M);
+  }
+
+  function fillTable(id, bt, labels, midIdx){
+    const tb=$(id).querySelector('tbody'); tb.innerHTML='';
+    if(!bt){ tb.innerHTML='<tr><td colspan="6" style="text-align:left;color:var(--faint)">no data fetched</td></tr>'; return; }
+    bt.forEach(row=>{
+      const tr=document.createElement('tr');
+      let cells='<td><b>'+fmt$(row.th)+'</b></td><td>'+row.n+'</td>';
+      row.agg.forEach(a=>{
+        cells+='<td>'+(a.avg===null?'—':'<span class="'+cls(a.avg)+'">'+pct(a.avg)+'</span>')+'</td>';
+      });
+      const w=row.agg[midIdx].win;
+      cells+='<td>'+(w===null?'—':Math.round(w*100)+'%')+'</td>';
+      tr.innerHTML=cells; tb.appendChild(tr);
+    });
+  }
+
+  // ---------- ladder ----------
+  function setTier(id, state, read, stateTxt){
+    const t=$('t_'+id); t.className='tier'+(state?' '+state:'');
+    $('r_'+id).innerHTML=read;
+    $('s_'+id).textContent=stateTxt;
+  }
+  function tierEval(id, cur, longShare, th, edgeTxt, holdTxt){
+    const skew=longShare>=0.6?'longs':'shorts';
+    const read='<b>'+fmt$(cur)+'</b> vs trigger '+fmt$(th)+' · '+Math.round(longShare*100)+'% longs rekt'
+      +'<span class="edge">'+edgeTxt+'</span>';
+    if(cur>=th && longShare>=0.6){ setTier(id,'buy',read,'BUY FADE'); return 3; }
+    if(cur>=th && longShare<=0.4){ setTier(id,'sell',read,'SQUEEZE — SELL STRENGTH'); return 2; }
+    if(cur>=th*0.5){ setTier(id,'elevated',read,'ELEVATED'); return 1; }
+    setTier(id,'',read,'IDLE'); return 0;
+  }
+  function edgeFor(bt, th, lab){
+    if(!bt) return 'no backtest data';
+    const row=bt.find(r=>r.th<=th)||bt[0];
+    const a=row.agg[1];
+    if(!a||a.avg===null||row.n<3) return 'insufficient history at this size';
+    return 'history: '+row.n+' events · avg '+pct(a.avg)+' '+lab+' · '+Math.round(a.win*100)+'% win';
+  }
+
+  function renderLadder(){
+    if(!H||!H.length) return;
+    const nowS=Math.floor(Date.now()/1000);
+
+    // MICRO: last 15min from 5min buckets
+    let microCur=0, microLS=0.5;
+    if(F&&F.length){
+      const last3=F.slice(-3);
+      const L=last3.reduce((a,x)=>a+x.l,0), S=last3.reduce((a,x)=>a+x.s,0);
+      microCur=L+S; microLS=(L+S)>0?L/(L+S):0.5;
+    }
+    // TACTICAL: last full-ish hour
+    const hLast=H[H.length-1]; const tactCur=hLast.l+hLast.s;
+    const tactLS=tactCur>0?hLast.l/tactCur:0.5;
+    // SWING: rolling 24h
+    const h24=H.filter(x=>x.t>=nowS-86400);
+    const sL=h24.reduce((a,x)=>a+x.l,0), sS=h24.reduce((a,x)=>a+x.s,0);
+    const swingCur=sL+sS, swingLS=swingCur>0?sL/swingCur:0.5;
+    // MACRO: last daily bucket (today running)
+    const dLast=D&&D.length?D[D.length-1]:{l:0,s:0};
+    const macroCur=dLast.l+dLast.s, macroLS=macroCur>0?dLast.l/macroCur:0.5;
+
+    const scores=[
+      {tier:'macro', s:tierEval('macro', macroCur, macroLS, calib.macro, edgeFor(btD,calib.macro,'+3d'), '')},
+      {tier:'swing', s:tierEval('swing', swingCur, swingLS, calib.swing, edgeFor(btD,calib.swing,'+3d'), '')},
+      {tier:'tact',  s:tierEval('tact',  tactCur,  tactLS,  calib.tact,  edgeFor(btH,calib.tact,'+4h'), '')},
+      {tier:'micro', s:tierEval('micro', microCur, microLS, calib.micro, edgeFor(btH,calib.micro,'+4h')+' (proxy from 1h data)', '')}
+    ];
+
+    // histogram last 48h
+    const hh=H.filter(x=>x.t>=nowS-48*3600);
+    const hEl=$('histo'); hEl.innerHTML='';
+    const max=Math.max(...hh.map(x=>x.l+x.s),1);
+    hh.forEach((x,i)=>{
+      const d=document.createElement('div'); const tot=x.l+x.s;
+      d.className='hb '+(tot===0?'':(x.l>=x.s?'long':'short'))+(i===hh.length-1?' now':'');
+      d.style.height=Math.max(2,Math.round(tot/max*100))+'%';
+      d.title=new Date(x.t*1000).toLocaleString('en-AU',{hour12:false})+' · '+fmt$(tot);
+      hEl.appendChild(d);
+    });
+
+    // master banner: highest buy tier wins; then squeeze; then elevated
+    const names={macro:'MACRO', swing:'SWING', tact:'TACTICAL', micro:'MICRO'};
+    const holds={macro:'accumulate — days to weeks', swing:'swing entry — 1 to 3 days', tact:'tactical entry — hours, exit when basis normalises', micro:'scalp only — smallest size, tightest leash'};
+    const buy=scores.find(x=>x.s===3), sell=scores.find(x=>x.s===2), elev=scores.find(x=>x.s===1);
+    const m=$('master');
+    if(buy){
+      m.className='master fire';
+      $('mtext').textContent='BUY FADE · '+names[buy.tier]+' FLUSH';
+      $('mwhy').textContent='Long-dominated flush above the historically-profitable trigger. '+holds[buy.tier]+'. Spot only, per CODEX.';
+    } else if(sell){
+      m.className='master sell';
+      $('mtext').textContent='SHORT SQUEEZE · '+names[sell.tier];
+      $('mwhy').textContent='Shorts are the ones dying — fading this means selling strength, never buying it.';
+    } else if(elev){
+      m.className='master amber';
+      $('mtext').textContent='ELEVATED · '+names[elev.tier];
+      $('mwhy').textContent='Liq flow building but below trigger. Cascades feed on themselves — watch, don\'t front-run.';
+    } else {
+      m.className='master';
+      $('mtext').textContent='STAND DOWN';
+      $('mwhy').textContent='No flush on any timeframe. The edge only exists when someone is being forced out.';
+    }
+  }
+
+  // ---------- wiring ----------
+  $('refresh').addEventListener('click',refreshAll);
+  $('savekey').addEventListener('click',async()=>{
+    const v=$('cakey').value.trim(); if(!v) return;
+    await kvSet('coinalyze_key',v);
+    $('savekey').textContent='SAVED'; setTimeout(()=>$('savekey').textContent='SAVE',1500);
+    refreshAll();
+  });
+  (async()=>{ if(await kvGet('coinalyze_key')) refreshAll(); else $('keystate').textContent='paste your free Coinalyze key once'; })();
+  setInterval(refreshAll, 300000);
+})();
+</script>
+</body>
+</html>
