@@ -1,0 +1,1186 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#05060A">
+<title>PARIAH-3 // FADE + LAZARUS</title>
+<style>
+:root{
+  --void:#05060A; --panel:#0C0F16; --line:#1B2130;
+  --bone:#C8CEDA; --dim:#6B7385;
+  --ember:#FFB454; --lift:#3DDC97; --blood:#FF5C5C; --ion:#7AA2FF;
+  --mono:"JetBrains Mono","SF Mono","Cascadia Mono",ui-monospace,Menlo,monospace;
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+html,body{background:var(--void);color:var(--bone);font-family:var(--mono);font-size:13px;line-height:1.45}
+body{padding-bottom:40px;background:
+  radial-gradient(1200px 500px at 80% -10%, rgba(122,162,255,0.05), transparent 60%),
+  var(--void)}
+b{font-weight:700}
+.up{color:var(--lift)} .dn{color:var(--blood)} .ion{color:var(--ion)}
+.bad{color:var(--blood)} .warn{color:var(--ember)} .ok{color:var(--lift)}
+
+/* topbar */
+#topbar{position:sticky;top:0;z-index:30;display:flex;align-items:center;gap:10px;
+  padding:10px 12px;background:rgba(5,6,10,0.92);backdrop-filter:blur(8px);border-bottom:1px solid var(--line)}
+#wordmark{font-weight:700;letter-spacing:0.12em;font-size:13px}
+#wordmark em{color:var(--ion);font-style:normal}
+#modeseg{display:flex;border:1px solid var(--line);border-radius:8px;overflow:hidden;margin-left:auto}
+#modeseg button{background:transparent;border:0;color:var(--dim);font:inherit;font-size:11px;
+  letter-spacing:0.1em;padding:7px 12px;cursor:pointer}
+#modeseg button.on{background:var(--panel);color:var(--bone)}
+#seg-laz.on{color:var(--ember)} #seg-fade.on{color:var(--blood)}
+.icon-btn{background:transparent;border:1px solid var(--line);border-radius:8px;color:var(--bone);
+  font:inherit;font-size:12px;padding:7px 10px;cursor:pointer}
+.icon-btn:active{background:var(--panel)}
+
+/* status strip */
+#strip{display:flex;gap:12px;overflow-x:auto;padding:8px 12px;font-size:10px;letter-spacing:0.08em;
+  color:var(--dim);border-bottom:1px solid var(--line);white-space:nowrap}
+#strip::-webkit-scrollbar{display:none}
+.s-item.ion{color:var(--ion)}
+
+/* cards */
+.card{margin:10px 12px;background:var(--panel);border:1px solid var(--line);border-radius:12px;overflow:hidden}
+.card h2{font-size:10px;letter-spacing:0.16em;color:var(--dim);padding:10px 12px 0}
+
+/* gravity map */
+#gmap{display:block;width:100%;height:280px}
+@media(min-width:720px){#gmap{height:360px}}
+
+/* filter chips */
+.chips{display:flex;gap:6px;overflow-x:auto;padding:4px 12px 10px}
+.chips::-webkit-scrollbar{display:none}
+.chip{flex:0 0 auto;font-size:10px;letter-spacing:0.06em;color:var(--dim);border:1px solid var(--line);
+  border-radius:999px;padding:4px 10px;background:transparent;cursor:pointer;font-family:var(--mono)}
+.chip.on{color:var(--bone);border-color:var(--dim);background:rgba(200,206,218,0.06)}
+.chip.cap{color:var(--ember);border-color:transparent;padding:2px 4px}
+.chip.warn{color:var(--ember);border-color:var(--ember)}
+
+/* list rows */
+#lazlist{margin:0 12px 12px;display:flex;flex-direction:column;gap:8px}
+.row{display:flex;justify-content:space-between;gap:10px;background:var(--panel);
+  border:1px solid var(--line);border-radius:12px;padding:10px 12px;cursor:pointer}
+.row:active{border-color:var(--dim)}
+.r-top{display:flex;align-items:center;gap:6px;font-size:13px}
+.r-top .chip{font-size:9px;padding:2px 7px}
+.r-name{color:var(--dim);font-size:10px;margin-top:2px}
+.r-bars{display:flex;gap:8px;align-items:center;margin-top:7px;font-size:9px;color:var(--dim)}
+.mb{display:inline-block;width:52px;height:4px;background:rgba(27,33,48,0.9);border-radius:2px;overflow:hidden;vertical-align:middle;margin-left:3px}
+.mb i{display:block;height:100%}
+.r-side{text-align:right;display:flex;flex-direction:column;justify-content:space-between}
+.r-px{font-size:14px;font-weight:700}
+.r-rr{font-size:10px;color:var(--ember)}
+.r-sec{font-size:10px;color:var(--ion);display:flex;gap:4px;justify-content:flex-end;align-items:center}
+.r-sec i{width:8px;height:8px;border-radius:50%;background:var(--ion);display:inline-block}
+.empty{color:var(--dim);text-align:center;padding:26px 20px;font-size:11px}
+.empty.small{padding:12px}
+
+/* dossier + sheets */
+#shade{position:fixed;inset:0;background:rgba(0,0,0,0.55);opacity:0;pointer-events:none;transition:opacity .2s;z-index:40}
+#shade.open{opacity:1;pointer-events:auto}
+.sheet{position:fixed;left:0;right:0;bottom:0;max-height:88vh;overflow-y:auto;z-index:50;
+  background:var(--panel);border-top:1px solid var(--line);border-radius:16px 16px 0 0;
+  transform:translateY(102%);transition:transform .24s ease-out;padding:14px 14px 30px}
+.sheet.open{transform:translateY(0)}
+@media(prefers-reduced-motion:reduce){.sheet{transition:none}#shade{transition:none}}
+.sheet .x{position:sticky;top:0;float:right;background:var(--void);border:1px solid var(--line);
+  color:var(--dim);border-radius:8px;font:inherit;padding:4px 10px;cursor:pointer}
+.d-head{display:flex;align-items:baseline;gap:8px;margin-bottom:10px}
+.d-head b{font-size:18px}
+.d-head span{color:var(--dim);font-size:10px}
+.proto{border:1px solid var(--lift);border-radius:10px;padding:10px 12px;margin-bottom:10px}
+.proto.stale{border-color:var(--ember)}
+.p-px{font-size:20px;font-weight:700}
+.p-px em{font-style:normal;font-size:12px;margin-left:6px}
+.p-src{color:var(--dim);font-size:9.5px;letter-spacing:0.06em;margin-top:3px}
+.p-src b{color:var(--ember)}
+#dchart{width:100%;height:190px;display:block;background:rgba(5,6,10,0.6);border:1px solid var(--line);border-radius:10px}
+.d-tier{font-size:12px;letter-spacing:0.14em;margin:12px 0 4px;font-weight:700}
+.d-plan{font-size:11.5px;color:var(--bone);border-left:2px solid var(--line);padding:2px 0 2px 10px;margin-bottom:12px}
+.d-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px}
+.d-grid label{display:block;font-size:10px;color:var(--dim);letter-spacing:0.08em;margin-bottom:3px}
+.d-grid span{display:block;font-size:9px;color:var(--dim);margin-top:3px}
+.d-grid .mb{width:100%}
+.d-levels{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:12px}
+.d-levels div{background:rgba(5,6,10,0.6);border:1px solid var(--line);border-radius:8px;padding:7px 9px}
+.d-levels span{display:block;font-size:8.5px;color:var(--dim);letter-spacing:0.1em}
+.d-levels b{font-size:12px}
+.d-flow{font-size:10px;color:var(--dim);letter-spacing:0.04em}
+.ai-note{margin-top:6px;color:var(--ion)}
+
+/* fade view */
+#fadebody{margin:10px 12px;display:flex;flex-direction:column;gap:2px}
+.f-note{color:var(--dim);font-size:10px;padding:2px 2px 10px}
+.f-row{display:grid;grid-template-columns:minmax(90px,1.15fr) 1fr auto auto;gap:8px;align-items:center;
+  padding:7px 10px;border:1px solid transparent;border-radius:8px;cursor:pointer}
+.f-row.ext{border-color:var(--line);background:var(--panel)}
+.f-name{font-size:10px;letter-spacing:0.04em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.f-barwrap{height:10px;background:rgba(27,33,48,0.6);border-radius:3px;overflow:hidden}
+.f-bar{height:100%}
+.f-bar.up{background:linear-gradient(90deg,rgba(61,220,151,0.4),var(--lift))}
+.f-bar.dn{background:linear-gradient(90deg,rgba(255,92,92,0.4),var(--blood))}
+.f-num{font-size:11px;min-width:56px;text-align:right}
+.f-z{font-size:9px;color:var(--dim);min-width:74px;text-align:right}
+.f-z b{color:var(--ember)}
+.f-members{display:none;padding:4px 10px 10px;gap:10px;flex-wrap:wrap;color:var(--dim);font-size:10px}
+.f-members.open{display:flex}
+.f-members em{font-style:normal}
+
+/* settings */
+#setbody h3{font-size:10px;letter-spacing:0.16em;color:var(--dim);margin:16px 0 8px}
+.fld{display:block;font-size:10px;color:var(--dim);margin-bottom:10px;letter-spacing:0.06em}
+.fld input[type=text]{width:100%;margin-top:4px;background:var(--void);border:1px solid var(--line);
+  border-radius:8px;color:var(--bone);font:inherit;padding:9px 10px}
+.fld input[type=range]{width:100%;margin-top:6px;accent-color:var(--ion)}
+.themes{display:grid;grid-template-columns:1fr;gap:6px}
+.t-row{display:flex;justify-content:space-between;align-items:center;gap:10px;font-size:10.5px}
+.t-row em{font-style:normal;font-size:9px}
+.t-row input{width:64px;background:var(--void);border:1px solid var(--line);border-radius:6px;
+  color:var(--bone);font:inherit;padding:6px 8px;text-align:right}
+.btnrow{display:flex;gap:8px;margin:14px 0}
+.btn{flex:1;background:var(--void);border:1px solid var(--line);border-radius:8px;color:var(--bone);
+  font:inherit;font-size:11px;letter-spacing:0.08em;padding:11px 8px;cursor:pointer}
+.btn.ion{color:var(--ion);border-color:var(--ion)}
+.btn.bad{color:var(--blood);border-color:rgba(255,92,92,0.4)}
+.c-out{font-size:10px;color:var(--ion);min-height:16px;white-space:pre-wrap}
+.u-list{display:flex;flex-direction:column;gap:6px;max-height:44vh;overflow-y:auto}
+.u-row{display:flex;gap:8px;align-items:baseline;font-size:11px}
+.u-row span{color:var(--dim);font-size:9.5px}
+.addrow{display:grid;grid-template-columns:1fr auto;gap:6px}
+.addrow input,.addrow select{background:var(--void);border:1px solid var(--line);border-radius:8px;
+  color:var(--bone);font:inherit;font-size:11px;padding:9px 10px}
+
+/* toast */
+#toast{position:fixed;bottom:18px;left:50%;transform:translate(-50%,20px);z-index:80;
+  background:var(--panel);border:1px solid var(--line);border-radius:10px;color:var(--bone);
+  font-size:11px;padding:10px 16px;opacity:0;pointer-events:none;transition:all .2s;max-width:88vw;text-align:center}
+#toast.show{opacity:1;transform:translate(-50%,0)}
+
+button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid var(--ion);outline-offset:1px}
+
+</style>
+</head>
+<body>
+<header id="topbar">
+  <div id="wordmark">PARIAH<em>-3</em></div>
+  <div id="modeseg">
+    <button id="seg-fade">FADE</button>
+    <button id="seg-laz">LAZARUS</button>
+  </div>
+  <button id="btn-sync" class="icon-btn" title="Refresh (dbl-tap = force)">SYNC</button>
+  <button id="btn-gear" class="icon-btn" title="Settings">⚙</button>
+</header>
+
+<div id="strip"></div>
+
+<main id="view-laz">
+  <section class="card">
+    <h2>GRAVITY MAP — LEFT FOR DEAD, PULLED BY FLOWS</h2>
+    <canvas id="gmap"></canvas>
+  </section>
+  <div class="chips" id="tierchips">
+    <button class="chip on" data-v="ALL">ALL</button>
+    <button class="chip" data-v="SIGNAL">SIGNALS</button>
+    <button class="chip" data-v="EARLY">EARLY</button>
+    <button class="chip" data-v="CONFIRMED">CONFIRMED</button>
+    <button class="chip" data-v="WATCH">WATCH</button>
+  </div>
+  <div class="chips" id="bucketchips">
+    <button class="chip on" data-v="ALL">ALL</button>
+    <button class="chip" data-v="CRYPTO">CRYPTO</button>
+    <button class="chip" data-v="COMMOD">COMMODS US</button>
+    <button class="chip" data-v="ASX">ASX</button>
+    <button class="chip" data-v="THEME">FUTURE-FACING</button>
+  </div>
+  <div id="lazlist"></div>
+</main>
+
+<main id="view-fade" style="display:none">
+  <div id="fadebody"></div>
+</main>
+
+<div id="shade"></div>
+
+<div class="sheet" id="dossier">
+  <button class="x">CLOSE</button>
+  <div id="dbody"></div>
+</div>
+
+<div class="sheet" id="settings">
+  <button class="x">CLOSE</button>
+  <div id="setbody"></div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+/* ============================================================
+   PARIAH-3 // FADE + LAZARUS
+   Single-user terminal. Mobile-first. GitHub Pages / offline-cache.
+   Protocol: no analysis renders without a fetched, timestamped price.
+   ============================================================ */
+'use strict';
+
+/* ---------- constants ---------- */
+const LS = {
+  settings: 'P3_settings', universe: 'P3_universe', secular: 'P3_secular',
+  meta: 'P3_meta', mode: 'P3_mode', candlePrefix: 'P3_c_'
+};
+const NOW = () => Date.now();
+const HOUR = 3600e3, DAY = 86400e3;
+const STALE_WARN = 24 * HOUR, STALE_HARD = 72 * HOUR;
+const TD_CREDITS_PER_MIN = 7;          // safety under 8/min free tier
+const CG_SPACING_MS = 2600;            // CoinGecko pacing
+const BARS = 320;                      // daily bars kept per symbol
+
+/* ---------- default secular map (curated base scores, editable) ---------- */
+const DEFAULT_SECULAR = {
+  'SEMICONDUCTORS': 95, 'AI INFRA': 92, 'SPACE': 92, 'ROBOTICS': 90,
+  'RARE EARTH & CRITICAL': 90, 'SEMI EQUIPMENT': 88, 'URANIUM & NUCLEAR': 88,
+  'COPPER': 86, 'SILVER': 85, 'CRYPTO INFRA': 82, 'QUANTUM': 80,
+  'DEFENSE TECH': 78, 'BIO & LONGEVITY': 76, 'LITHIUM & BATTERY': 74,
+  'GOLD': 72, 'PSYCHEDELICS': 70, 'EV': 65, 'ENERGY TRADITIONAL': 62,
+  'DIVERSIFIED MINERS': 64, 'CRYPTO MAJORS': 78
+};
+
+/* ---------- seed universe ----------
+   src: 'td' (Twelve Data, US default), 'td_fx' (spot pair), 'asx' (TD exchange=ASX), 'cg' (CoinGecko)
+   role: 'asset' | 'etf' (flow proxy) | 'bench'
+------------------------------------------------------------------ */
+const DEFAULT_UNIVERSE = [
+  // ---- CRYPTO (CoinGecko ids) ----
+  { sym:'BTC',  name:'Bitcoin',      src:'cg', id:'bitcoin',            bucket:'CRYPTO', theme:'CRYPTO MAJORS', role:'bench' },
+  { sym:'ETH',  name:'Ethereum',     src:'cg', id:'ethereum',           bucket:'CRYPTO', theme:'CRYPTO MAJORS', role:'asset' },
+  { sym:'SOL',  name:'Solana',       src:'cg', id:'solana',             bucket:'CRYPTO', theme:'CRYPTO MAJORS', role:'asset' },
+  { sym:'HYPE', name:'Hyperliquid',  src:'cg', id:'hyperliquid',        bucket:'CRYPTO', theme:'CRYPTO INFRA',  role:'asset' },
+  { sym:'INJ',  name:'Injective',    src:'cg', id:'injective-protocol', bucket:'CRYPTO', theme:'CRYPTO INFRA',  role:'asset' },
+  { sym:'TAO',  name:'Bittensor',    src:'cg', id:'bittensor',          bucket:'CRYPTO', theme:'CRYPTO INFRA',  role:'asset' },
+  { sym:'RENDER',name:'Render',      src:'cg', id:'render-token',       bucket:'CRYPTO', theme:'CRYPTO INFRA',  role:'asset' },
+  { sym:'AKT',  name:'Akash',        src:'cg', id:'akash-network',      bucket:'CRYPTO', theme:'CRYPTO INFRA',  role:'asset' },
+  { sym:'LINK', name:'Chainlink',    src:'cg', id:'chainlink',          bucket:'CRYPTO', theme:'CRYPTO INFRA',  role:'asset' },
+  { sym:'SUI',  name:'Sui',          src:'cg', id:'sui',                bucket:'CRYPTO', theme:'CRYPTO MAJORS', role:'asset' },
+  { sym:'TIA',  name:'Celestia',     src:'cg', id:'celestia',           bucket:'CRYPTO', theme:'CRYPTO INFRA',  role:'asset' },
+  { sym:'NEAR', name:'Near',         src:'cg', id:'near',               bucket:'CRYPTO', theme:'CRYPTO MAJORS', role:'asset' },
+
+  // ---- US COMMODS / PRODUCERS ----
+  { sym:'XAU/USD', name:'Gold spot',   src:'td_fx', bucket:'COMMOD', theme:'GOLD',   role:'asset' },
+  { sym:'XAG/USD', name:'Silver spot', src:'td_fx', bucket:'COMMOD', theme:'SILVER', role:'asset' },
+  { sym:'FCX',  name:'Freeport',       src:'td', bucket:'COMMOD', theme:'COPPER', role:'asset' },
+  { sym:'SCCO', name:'Southern Copper',src:'td', bucket:'COMMOD', theme:'COPPER', role:'asset' },
+  { sym:'MP',   name:'MP Materials',   src:'td', bucket:'COMMOD', theme:'RARE EARTH & CRITICAL', role:'asset' },
+  { sym:'USAR', name:'USA Rare Earth', src:'td', bucket:'COMMOD', theme:'RARE EARTH & CRITICAL', role:'asset' },
+  { sym:'CCJ',  name:'Cameco',         src:'td', bucket:'COMMOD', theme:'URANIUM & NUCLEAR', role:'asset' },
+  { sym:'UEC',  name:'Uranium Energy', src:'td', bucket:'COMMOD', theme:'URANIUM & NUCLEAR', role:'asset' },
+  { sym:'XOM',  name:'Exxon',          src:'td', bucket:'COMMOD', theme:'ENERGY TRADITIONAL', role:'asset' },
+  { sym:'CNQ',  name:'CNQ',            src:'td', bucket:'COMMOD', theme:'ENERGY TRADITIONAL', role:'asset' },
+  { sym:'NEM',  name:'Newmont',        src:'td', bucket:'COMMOD', theme:'GOLD',   role:'asset' },
+  { sym:'AG',   name:'First Majestic', src:'td', bucket:'COMMOD', theme:'SILVER', role:'asset' },
+  { sym:'PAAS', name:'Pan American',   src:'td', bucket:'COMMOD', theme:'SILVER', role:'asset' },
+  { sym:'WPM',  name:'Wheaton PM',     src:'td', bucket:'COMMOD', theme:'SILVER', role:'asset' },
+  { sym:'ALB',  name:'Albemarle',      src:'td', bucket:'COMMOD', theme:'LITHIUM & BATTERY', role:'asset' },
+
+  // ---- ASX ----
+  { sym:'ASL', name:'Andean Silver',   src:'asx', bucket:'ASX', theme:'SILVER', role:'asset' },
+  { sym:'BML', name:'Boab Metals',     src:'asx', bucket:'ASX', theme:'SILVER', role:'asset' },
+  { sym:'VTM', name:'Victory Metals',  src:'asx', bucket:'ASX', theme:'RARE EARTH & CRITICAL', role:'asset' },
+  { sym:'LYC', name:'Lynas',           src:'asx', bucket:'ASX', theme:'RARE EARTH & CRITICAL', role:'asset' },
+  { sym:'PLS', name:'Pilbara',         src:'asx', bucket:'ASX', theme:'LITHIUM & BATTERY', role:'asset' },
+  { sym:'MIN', name:'Mineral Res.',    src:'asx', bucket:'ASX', theme:'LITHIUM & BATTERY', role:'asset' },
+  { sym:'IGO', name:'IGO',             src:'asx', bucket:'ASX', theme:'LITHIUM & BATTERY', role:'asset' },
+  { sym:'NST', name:'Northern Star',   src:'asx', bucket:'ASX', theme:'GOLD', role:'asset' },
+  { sym:'EVN', name:'Evolution',       src:'asx', bucket:'ASX', theme:'GOLD', role:'asset' },
+  { sym:'PDN', name:'Paladin',         src:'asx', bucket:'ASX', theme:'URANIUM & NUCLEAR', role:'asset' },
+  { sym:'BOE', name:'Boss Energy',     src:'asx', bucket:'ASX', theme:'URANIUM & NUCLEAR', role:'asset' },
+  { sym:'BHP', name:'BHP',             src:'asx', bucket:'ASX', theme:'DIVERSIFIED MINERS', role:'asset' },
+  { sym:'FMG', name:'Fortescue',       src:'asx', bucket:'ASX', theme:'DIVERSIFIED MINERS', role:'asset' },
+  { sym:'WDS', name:'Woodside',        src:'asx', bucket:'ASX', theme:'ENERGY TRADITIONAL', role:'asset' },
+  { sym:'VAS', name:'ASX300 ETF',      src:'asx', bucket:'ASX', theme:'DIVERSIFIED MINERS', role:'bench' },
+
+  // ---- FUTURE-FACING THEMES (US) ----
+  { sym:'NVDA', name:'Nvidia',    src:'td', bucket:'THEME', theme:'SEMICONDUCTORS', role:'asset' },
+  { sym:'AMD',  name:'AMD',       src:'td', bucket:'THEME', theme:'SEMICONDUCTORS', role:'asset' },
+  { sym:'ASML', name:'ASML',      src:'td', bucket:'THEME', theme:'SEMI EQUIPMENT', role:'asset' },
+  { sym:'AMAT', name:'Applied Mat.',src:'td',bucket:'THEME', theme:'SEMI EQUIPMENT', role:'asset' },
+  { sym:'MU',   name:'Micron',    src:'td', bucket:'THEME', theme:'SEMICONDUCTORS', role:'asset' },
+  { sym:'ON',   name:'onsemi',    src:'td', bucket:'THEME', theme:'SEMICONDUCTORS', role:'asset' },
+  { sym:'SMCI', name:'Supermicro',src:'td', bucket:'THEME', theme:'AI INFRA', role:'asset' },
+  { sym:'VRT',  name:'Vertiv',    src:'td', bucket:'THEME', theme:'AI INFRA', role:'asset' },
+  { sym:'ANET', name:'Arista',    src:'td', bucket:'THEME', theme:'AI INFRA', role:'asset' },
+  { sym:'TER',  name:'Teradyne',  src:'td', bucket:'THEME', theme:'ROBOTICS', role:'asset' },
+  { sym:'SYM',  name:'Symbotic',  src:'td', bucket:'THEME', theme:'ROBOTICS', role:'asset' },
+  { sym:'ROK',  name:'Rockwell',  src:'td', bucket:'THEME', theme:'ROBOTICS', role:'asset' },
+  { sym:'ISRG', name:'Intuitive', src:'td', bucket:'THEME', theme:'ROBOTICS', role:'asset' },
+  { sym:'ASTS', name:'AST Space', src:'td', bucket:'THEME', theme:'SPACE', role:'asset' },
+  { sym:'RKLB', name:'Rocket Lab',src:'td', bucket:'THEME', theme:'SPACE', role:'asset' },
+  { sym:'RDW',  name:'Redwire',   src:'td', bucket:'THEME', theme:'SPACE', role:'asset' },
+  { sym:'PL',   name:'Planet',    src:'td', bucket:'THEME', theme:'SPACE', role:'asset' },
+  { sym:'LUNR', name:'Intuitive M.',src:'td',bucket:'THEME', theme:'SPACE', role:'asset' },
+  { sym:'IONQ', name:'IonQ',      src:'td', bucket:'THEME', theme:'QUANTUM', role:'asset' },
+  { sym:'RGTI', name:'Rigetti',   src:'td', bucket:'THEME', theme:'QUANTUM', role:'asset' },
+  { sym:'QBTS', name:'D-Wave',    src:'td', bucket:'THEME', theme:'QUANTUM', role:'asset' },
+  { sym:'TSLA', name:'Tesla',     src:'td', bucket:'THEME', theme:'EV', role:'asset' },
+  { sym:'ATAI', name:'Atai',      src:'td', bucket:'THEME', theme:'PSYCHEDELICS', role:'asset' },
+  { sym:'CMPS', name:'Compass',   src:'td', bucket:'THEME', theme:'PSYCHEDELICS', role:'asset' },
+  { sym:'CYBN', name:'Cybin',     src:'td', bucket:'THEME', theme:'PSYCHEDELICS', role:'asset' },
+
+  // ---- FLOW PROXY ETFs + BENCH ----
+  { sym:'SPY',  name:'S&P 500',        src:'td', bucket:'ETF', theme:'BENCH', role:'bench' },
+  { sym:'SMH',  name:'Semis ETF',      src:'td', bucket:'ETF', theme:'SEMICONDUCTORS', role:'etf' },
+  { sym:'BOTZ', name:'Robotics ETF',   src:'td', bucket:'ETF', theme:'ROBOTICS', role:'etf' },
+  { sym:'ARKX', name:'Space ETF',      src:'td', bucket:'ETF', theme:'SPACE', role:'etf' },
+  { sym:'QTUM', name:'Quantum ETF',    src:'td', bucket:'ETF', theme:'QUANTUM', role:'etf' },
+  { sym:'LIT',  name:'Lithium ETF',    src:'td', bucket:'ETF', theme:'LITHIUM & BATTERY', role:'etf' },
+  { sym:'URA',  name:'Uranium ETF',    src:'td', bucket:'ETF', theme:'URANIUM & NUCLEAR', role:'etf' },
+  { sym:'REMX', name:'RareEarth ETF',  src:'td', bucket:'ETF', theme:'RARE EARTH & CRITICAL', role:'etf' },
+  { sym:'XME',  name:'Metals ETF',     src:'td', bucket:'ETF', theme:'DIVERSIFIED MINERS', role:'etf' },
+  { sym:'COPX', name:'Copper ETF',     src:'td', bucket:'ETF', theme:'COPPER', role:'etf' },
+  { sym:'SLV',  name:'Silver ETF',     src:'td', bucket:'ETF', theme:'SILVER', role:'etf' },
+  { sym:'GDX',  name:'Gold Miners ETF',src:'td', bucket:'ETF', theme:'GOLD', role:'etf' },
+  { sym:'XLE',  name:'Energy ETF',     src:'td', bucket:'ETF', theme:'ENERGY TRADITIONAL', role:'etf' }
+];
+
+/* ---------- state ---------- */
+const S = {
+  settings: null, universe: null, secular: null, meta: null,
+  mode: 'LAZ',                       // 'LAZ' | 'FADE'
+  candles: {},                       // sym -> {t:[ms], o,h,l,c,v arrays}
+  scores: {},                        // sym -> computed score object
+  fade: null,                        // fade engine output
+  fetching: false, fetchProgress: '', creditLog: [],
+  filterTier: 'ALL', filterBucket: 'ALL', selected: null
+};
+
+function loadJSON(k, fallback){ try{ const v = localStorage.getItem(k); return v ? JSON.parse(v) : fallback; }catch(e){ return fallback; } }
+function saveJSON(k, v){ try{ localStorage.setItem(k, JSON.stringify(v)); }catch(e){ console.warn('LS write failed', k, e); toast('Storage full — clear cache in settings'); } }
+
+function defaultSettings(){
+  return {
+    tdKey:'', anthKey:'', anthModel:'claude-sonnet-4-6',
+    wCurated:50, wFlow:30, wAI:20,
+    minRR:3, deathFloor:55,
+    lastFullFetch:0
+  };
+}
+
+function initState(){
+  S.settings = Object.assign(defaultSettings(), loadJSON(LS.settings, {}));
+  S.universe = loadJSON(LS.universe, null) || DEFAULT_UNIVERSE.map(u=>Object.assign({on:true}, u));
+  S.secular  = loadJSON(LS.secular, null) || { curated: Object.assign({}, DEFAULT_SECULAR), ai:{}, aiNotes:{}, aiAt:0 };
+  S.meta     = loadJSON(LS.meta, {});     // sym -> {at, ok, err}
+  S.mode     = loadJSON(LS.mode, 'LAZ');
+  // auto-detect an existing Twelve Data key from other Fable tools (same origin)
+  if(!S.settings.tdKey){
+    for(let i=0;i<localStorage.length;i++){
+      const k = localStorage.key(i);
+      if(/^P3_/.test(k)) continue;
+      let v = localStorage.getItem(k) || '';
+      try{ const p = JSON.parse(v); if(typeof p === 'string') v = p; }catch(e){}
+      if(/(twelve|td).*(key|api)|(key|api).*(twelve|td)/i.test(k) && /^[a-f0-9]{16,64}$/i.test(v.trim())){
+        S.settings.tdKey = v.trim(); saveJSON(LS.settings, S.settings);
+        toast('Twelve Data key inherited from existing Fable tool'); break;
+      }
+    }
+  }
+  // load cached candles
+  S.universe.forEach(u=>{
+    const c = loadJSON(LS.candlePrefix + u.sym, null);
+    if(c && c.c && c.c.length) S.candles[u.sym] = c;
+  });
+}
+
+/* ---------- math utils ---------- */
+const last = a => a[a.length-1];
+const rnd = (x,p=4) => x==null||isNaN(x) ? null : +x.toPrecision(p);
+const clamp = (x,lo,hi) => Math.max(lo, Math.min(hi, x));
+const mapRange = (x, x0, x1, y0=0, y1=100) => clamp(y0 + (x - x0) * (y1 - y0) / (x1 - x0), Math.min(y0,y1), Math.max(y0,y1));
+
+function sma(arr, n){
+  const out = new Array(arr.length).fill(null); let s = 0;
+  for(let i=0;i<arr.length;i++){ s += arr[i]; if(i>=n) s -= arr[i-n]; if(i>=n-1) out[i] = s/n; }
+  return out;
+}
+function ema(arr, n){
+  const out = new Array(arr.length).fill(null); const k = 2/(n+1); let e = null;
+  for(let i=0;i<arr.length;i++){ e = e==null ? arr[i] : arr[i]*k + e*(1-k); out[i] = e; }
+  return out;
+}
+function mean(a){ return a.length ? a.reduce((x,y)=>x+y,0)/a.length : 0; }
+function stdev(a){ if(a.length<2) return 0; const m = mean(a); return Math.sqrt(a.reduce((s,x)=>s+(x-m)*(x-m),0)/(a.length-1)); }
+function slope(arr){ // simple least-squares slope per step
+  const n = arr.length; if(n<2) return 0;
+  let sx=0, sy=0, sxy=0, sxx=0;
+  for(let i=0;i<n;i++){ sx+=i; sy+=arr[i]; sxy+=i*arr[i]; sxx+=i*i; }
+  const d = n*sxx - sx*sx; return d===0 ? 0 : (n*sxy - sx*sy)/d;
+}
+
+/* close-based ATR% (works when OHLC missing e.g. CoinGecko) */
+function atrPct(c, n){
+  const tr = []; for(let i=1;i<c.length;i++) tr.push(Math.abs(c[i]-c[i-1])/c[i-1]);
+  if(tr.length < n) return null;
+  return mean(tr.slice(-n)) * 100;
+}
+
+/* weekly resample from daily arrays -> {t,c,v,h,l} (ISO week close) */
+function toWeekly(d){
+  const wk = []; let cur = null;
+  for(let i=0;i<d.t.length;i++){
+    const dt = new Date(d.t[i]);
+    const day = (dt.getUTCDay() + 6) % 7;                 // Mon=0
+    const wkStart = d.t[i] - day*DAY - (d.t[i] % DAY);
+    if(!cur || cur.key !== wkStart){
+      if(cur) wk.push(cur);
+      cur = { key: wkStart, t: d.t[i], c: d.c[i], v: d.v[i]||0, h: d.h?d.h[i]:d.c[i], l: d.l?d.l[i]:d.c[i] };
+    } else {
+      cur.t = d.t[i]; cur.c = d.c[i]; cur.v += d.v[i]||0;
+      cur.h = Math.max(cur.h, d.h?d.h[i]:d.c[i]); cur.l = Math.min(cur.l, d.l?d.l[i]:d.c[i]);
+    }
+  }
+  if(cur) wk.push(cur);
+  return { t: wk.map(w=>w.t), c: wk.map(w=>w.c), v: wk.map(w=>w.v), h: wk.map(w=>w.h), l: wk.map(w=>w.l) };
+}
+
+/* pivot lows on weekly lows: local min over +-win */
+function pivotLows(lows, win=2){
+  const out = [];
+  for(let i=win;i<lows.length-win;i++){
+    let ok = true;
+    for(let j=i-win;j<=i+win;j++){ if(j!==i && lows[j] < lows[i]){ ok=false; break; } }
+    if(ok) out.push({ i, v: lows[i] });
+  }
+  return out;
+}
+
+function fmtPrice(x){
+  if(x==null || isNaN(x)) return '—';
+  if(x >= 1000) return x.toLocaleString('en-US',{maximumFractionDigits:0});
+  if(x >= 10) return x.toFixed(2);
+  if(x >= 0.1) return x.toFixed(3);
+  return x.toPrecision(3);
+}
+function fmtAgo(ms){
+  if(!ms) return 'never';
+  const d = NOW() - ms;
+  if(d < 90e3) return 'just now';
+  if(d < HOUR) return Math.round(d/60e3)+'m ago';
+  if(d < DAY) return Math.round(d/HOUR)+'h ago';
+  return Math.round(d/DAY)+'d ago';
+}
+function esc(s){ return String(s).replace(/[&<>"]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+
+/* ============================================================
+   FETCH ENGINES — live-first protocol. Nothing scores on stale data
+   without an explicit STALE badge; nothing renders without a timestamp.
+   ============================================================ */
+
+function activeUniverse(){ return S.universe.filter(u=>u.on !== false); }
+
+function setMeta(sym, ok, err){
+  S.meta[sym] = { at: NOW(), ok, err: err || null };
+  saveJSON(LS.meta, S.meta);
+}
+
+function storeCandles(sym, d){
+  // keep last BARS, round to shrink LS footprint
+  const n = d.t.length, s = Math.max(0, n - BARS);
+  const pack = {
+    t: d.t.slice(s),
+    c: d.c.slice(s).map(x=>rnd(x,6)),
+    v: d.v.slice(s).map(x=>Math.round(x||0)),
+    h: d.h ? d.h.slice(s).map(x=>rnd(x,6)) : null,
+    l: d.l ? d.l.slice(s).map(x=>rnd(x,6)) : null
+  };
+  S.candles[sym] = pack;
+  saveJSON(LS.candlePrefix + sym, pack);
+}
+
+/* ---- Twelve Data ---- */
+async function tdRequest(params){
+  const qs = new URLSearchParams(Object.assign({ apikey: S.settings.tdKey, interval:'1day', outputsize: String(BARS), order:'asc' }, params));
+  const r = await fetch('https://api.twelvedata.com/time_series?' + qs.toString());
+  return r.json();
+}
+function tdParseSeries(j){
+  if(!j || j.status === 'error' || !j.values) return null;
+  const v = j.values; // order=asc requested; guard anyway
+  const asc = v.length < 2 || new Date(v[0].datetime) < new Date(v[1].datetime) ? v : v.slice().reverse();
+  return {
+    t: asc.map(x=>new Date(x.datetime + 'T00:00:00Z').getTime()),
+    o: asc.map(x=>+x.open), h: asc.map(x=>+x.high), l: asc.map(x=>+x.low),
+    c: asc.map(x=>+x.close), v: asc.map(x=>+(x.volume||0))
+  };
+}
+
+/* ---- CoinGecko ---- */
+async function cgFetch(u){
+  const url = `https://api.coingecko.com/api/v3/coins/${u.id}/market_chart?vs_currency=usd&days=365&interval=daily`;
+  const r = await fetch(url);
+  if(r.status === 429) throw new Error('429 rate limit');
+  const j = await r.json();
+  if(!j.prices || !j.prices.length) throw new Error(j.error || 'no data');
+  const t = j.prices.map(p=>p[0]), c = j.prices.map(p=>p[1]);
+  const v = (j.total_volumes||[]).map(p=>p[1]);
+  return { t, c, v, o:null, h:null, l:null };
+}
+
+/* ---- master refresh queue ---- */
+async function refreshAll(force){
+  if(S.fetching) return;
+  if(!S.settings.tdKey && activeUniverse().some(u=>u.src!=='cg')){ openSettings(); toast('Twelve Data key required for equities/spot'); }
+  S.fetching = true;
+  const uni = activeUniverse();
+  const stale = u => force || !S.meta[u.sym] || !S.meta[u.sym].ok || (NOW() - S.meta[u.sym].at) > 20*HOUR || !S.candles[u.sym];
+  const cg  = uni.filter(u=>u.src==='cg' && stale(u));
+  const sgl = uni.filter(u=>(u.src==='asx' || u.src==='td_fx') && stale(u));
+  const us  = uni.filter(u=>u.src==='td' && stale(u));
+  const total = cg.length + sgl.length + us.length;
+  let done = 0;
+  const tick = ()=>{ done++; S.fetchProgress = `${done}/${total}`; renderStrip(); };
+
+  // CoinGecko lane (parallel to TD lane)
+  const cgLane = (async ()=>{
+    for(const u of cg){
+      try{ const d = await cgFetch(u); storeCandles(u.sym, d); setMeta(u.sym, true); }
+      catch(e){ setMeta(u.sym, false, String(e.message||e)); }
+      tick(); await new Promise(r=>setTimeout(r, CG_SPACING_MS));
+    }
+  })();
+
+  // Twelve Data lane: batches of 7 US symbols (1 credit each) or singles, ≤7 credits/min
+  const tdLane = (async ()=>{
+    if(!S.settings.tdKey){ [...sgl, ...us].forEach(u=>{ setMeta(u.sym,false,'no key'); tick(); }); return; }
+    const jobs = [];
+    for(let i=0;i<us.length;i+=TD_CREDITS_PER_MIN) jobs.push({ type:'batch', items: us.slice(i, i+TD_CREDITS_PER_MIN) });
+    // singles grouped so each minute-window spends ≤ TD_CREDITS_PER_MIN
+    for(let i=0;i<sgl.length;i+=TD_CREDITS_PER_MIN) jobs.push({ type:'singles', items: sgl.slice(i, i+TD_CREDITS_PER_MIN) });
+    for(let j=0;j<jobs.length;j++){
+      const t0 = NOW(); const job = jobs[j];
+      if(job.type === 'batch'){
+        try{
+          const j2 = await tdRequest({ symbol: job.items.map(u=>u.sym).join(',') });
+          for(const u of job.items){
+            const node = job.items.length === 1 ? j2 : j2[u.sym];
+            const d = tdParseSeries(node);
+            if(d && d.c.length){ storeCandles(u.sym, d); setMeta(u.sym, true); }
+            else setMeta(u.sym, false, (node && node.message) || 'no data');
+            tick();
+          }
+        }catch(e){ job.items.forEach(u=>{ setMeta(u.sym,false,String(e.message||e)); tick(); }); }
+      } else {
+        for(const u of job.items){
+          try{
+            const params = u.src==='asx' ? { symbol: u.sym, exchange:'ASX' } : { symbol: u.sym };
+            const d = tdParseSeries(await tdRequest(params));
+            if(d && d.c.length){ storeCandles(u.sym, d); setMeta(u.sym, true); }
+            else setMeta(u.sym, false, 'no data');
+          }catch(e){ setMeta(u.sym, false, String(e.message||e)); }
+          tick();
+        }
+      }
+      const wait = 62e3 - (NOW() - t0);                    // hold the minute window
+      if(j < jobs.length-1 && wait > 0) await new Promise(r=>setTimeout(r, wait));
+    }
+  })();
+
+  await Promise.all([cgLane, tdLane]);
+  S.settings.lastFullFetch = NOW(); saveJSON(LS.settings, S.settings);
+  S.fetching = false; S.fetchProgress = '';
+  computeAll(); render();
+  toast('Refresh complete');
+}
+
+/* ============================================================
+   LAZARUS SCORING ENGINE — weekly structure only
+   ============================================================ */
+
+function benchFor(u){
+  if(u.bucket === 'CRYPTO') return 'BTC';
+  if(u.bucket === 'ASX') return 'VAS';
+  return 'SPY';
+}
+
+function themeETF(theme){
+  const e = activeUniverse().find(u=>u.role==='etf' && u.theme===theme);
+  return e ? e.sym : null;
+}
+
+/* relative strength 20-period change of ratio asset/bench (daily) */
+function rsChange(sym, benchSym, lookback){
+  const a = S.candles[sym], b = S.candles[benchSym];
+  if(!a || !b) return null;
+  const n = Math.min(a.c.length, b.c.length);
+  if(n < lookback + 2) return null;
+  const ra = a.c.slice(-n), rb = b.c.slice(-n);
+  const ratio = ra.map((x,i)=>x/rb[i]);
+  const nowR = last(ratio), pastR = ratio[ratio.length-1-lookback];
+  return (nowR/pastR - 1) * 100;
+}
+
+function flowScore(theme){
+  const etf = themeETF(theme);
+  if(!etf || !S.candles[etf]) return { score: 50, label: 'no proxy' };
+  const d = S.candles[etf];
+  if(d.c.length < 70) return { score: 50, label: 'thin' };
+  const dv = d.c.map((c,i)=>c*(d.v[i]||0));
+  const dv20 = mean(dv.slice(-20)), dv60 = mean(dv.slice(-60));
+  const volTrend = dv60 > 0 ? (dv20/dv60 - 1) * 100 : 0;       // $-volume trend %
+  const rs = rsChange(etf, 'SPY', 60) || 0;                     // 60d RS vs SPY
+  const score = clamp(50 + volTrend * 1.2 + rs * 1.5, 0, 100);
+  return { score: Math.round(score), volTrend: rnd(volTrend,3), rs: rnd(rs,3), etf };
+}
+
+function secularScore(theme){
+  const cur = S.secular.curated[theme] != null ? S.secular.curated[theme] : 50;
+  const fl = flowScore(theme);
+  const ai = S.secular.ai[theme];
+  const wC = S.settings.wCurated, wF = S.settings.wFlow, wA = S.settings.wAI;
+  const wSum = wC + wF + (ai != null ? wA : 0);
+  const blended = (cur*wC + fl.score*wF + (ai != null ? ai*wA : 0)) / (wSum || 1);
+  return { blended: Math.round(blended), curated: cur, flow: fl, ai: ai != null ? ai : null };
+}
+
+function scoreSymbol(u){
+  const d = S.candles[u.sym];
+  const m = S.meta[u.sym] || {};
+  if(!d || d.c.length < 120) return { sym: u.sym, u, insufficient: true, meta: m };
+  const c = d.c, t = d.t;
+  const w = toWeekly(d);
+  const px = last(c);
+  const ma200 = sma(c, 200), ma50 = sma(c, 50);
+  const m200 = last(ma200), m50 = last(ma50);
+
+  /* --- DEATH --- */
+  let hiIdx = 0; for(let i=0;i<c.length;i++) if(c[i] >= c[hiIdx]) hiIdx = i;
+  const cycleHigh = c[hiIdx];
+  const dd = (cycleHigh - px) / cycleHigh;
+  const uwWeeks = (last(t) - t[hiIdx]) / (7*DAY);
+  const below200 = m200 ? (m200 - px)/m200 : 0;
+  const DEATH = Math.round(0.5*mapRange(dd, 0.15, 0.80) + 0.25*mapRange(uwWeeks, 4, 52) + 0.25*mapRange(below200, 0, 0.40));
+
+  /* --- cycle low & base --- */
+  let loIdx = hiIdx; for(let i=hiIdx;i<c.length;i++) if(c[i] <= c[loIdx]) loIdx = i;
+  const cycleLow = c[loIdx];
+  const baseWeeks = (last(t) - t[loIdx]) / (7*DAY);
+  // pivots after the low (weekly)
+  const wLoIdx = w.t.findIndex(x=>x >= t[loIdx]);
+  const lowsAfter = w.l.slice(Math.max(0, wLoIdx));
+  const piv = pivotLows(lowsAfter, 2);
+  let ascending = 0;
+  for(let i=1;i<piv.length;i++) if(piv[i].v > piv[i-1].v) ascending++;
+  const hlScore = ascending >= 2 ? 100 : ascending === 1 ? 55 : (last(w.l) > cycleLow*1.05 ? 30 : 0);
+  const a20 = atrPct(c, 20), a60 = atrPct(c, 60);
+  const volComp = (a20 && a60) ? mapRange(a20/a60, 1.0, 0.55) : 0;
+  let volDry = 50;
+  const hasVol = d.v && d.v.some(x=>x>0);
+  if(hasVol){
+    const v20 = mean(d.v.slice(-20)), v100 = mean(d.v.slice(-100));
+    volDry = v100 > 0 ? mapRange(v20/v100, 1.1, 0.45) : 50;
+  }
+  const slopeNow = slope(ma200.slice(-20).filter(x=>x!=null));
+  const slopePast = slope(ma200.slice(-80,-60).filter(x=>x!=null));
+  const flat = (m200 && slopePast < 0) ? mapRange(slopeNow/m200*100, -0.08, 0.01) : (slopeNow >= 0 ? 60 : 20);
+  let BASE = Math.round(0.30*mapRange(baseWeeks, 4, 30) + 0.25*hlScore + 0.20*volComp + 0.15*volDry + 0.10*flat);
+
+  /* --- capitulation print --- */
+  let capEvent = false;
+  if(hasVol && d.c.length > 60){
+    const v50 = mean(d.v.slice(-60, -1));
+    for(let i=c.length-60;i<c.length;i++){
+      if(d.v[i] > 3*v50 && c[i] <= cycleLow*1.10){ capEvent = true; break; }
+    }
+    if(capEvent) BASE = Math.min(100, BASE + 5);
+  }
+
+  /* --- PULSE --- */
+  const rs20 = rsChange(u.sym, benchFor(u), 20);
+  const rsUp = rs20 != null && rs20 > 0;
+  const e12 = ema(w.c, 12), e26 = ema(w.c, 26);
+  const macd = w.c.map((_,i)=>e12[i]-e26[i]);
+  const sig = ema(macd, 9);
+  const hist = macd.map((x,i)=>x - sig[i]);
+  const macdUp = hist.length > 3 && hist[hist.length-1] > hist[hist.length-2] && hist[hist.length-2] > hist[hist.length-3];
+  const m50Up = ma50.length > 12 && m50 != null && ma50[ma50.length-11] != null && m50 > ma50[ma50.length-11];
+  const PULSE = Math.round(clamp((rs20 != null ? mapRange(rs20, -5, 12, 0, 60) : 20) + (macdUp?25:0) + (m50Up?15:0), 0, 100));
+
+  /* --- tiers & levels --- */
+  const baseRangeHigh = Math.max(...c.slice(loIdx));         // top of post-low range
+  const wATR = (()=>{ const tr=[]; for(let i=1;i<w.c.length;i++) tr.push(Math.abs(w.c[i]-w.c[i-1])); return mean(tr.slice(-10)); })();
+  const breakout = px > baseRangeHigh * 0.985 && baseWeeks >= 8;
+  const reclaim50 = m50 != null && px > m50;
+  let tier = null;
+  if(BASE >= 60 && PULSE >= 55 && (breakout || (reclaim50 && rsUp))) tier = 'CONFIRMED';
+  else if(DEATH >= S.settings.deathFloor && BASE >= 40 && px < (m200||Infinity)) tier = 'EARLY';
+  else if(DEATH >= S.settings.deathFloor && BASE >= 18) tier = 'WATCH';
+
+  const inval = tier === 'CONFIRMED' ? Math.max(cycleLow, (m50 || cycleLow)) - 0.5*wATR
+                                     : cycleLow - 1.0*wATR;
+  const entry = tier === 'CONFIRMED' ? Math.max(px, baseRangeHigh) : px;
+  const T1 = cycleLow + 0.382*(cycleHigh - cycleLow);
+  const T2 = cycleLow + 0.618*(cycleHigh - cycleLow);
+  const risk = entry - inval;
+  const RR1 = risk > 0 && T1 > entry ? (T1 - entry)/risk : null;
+  const RR2 = risk > 0 && T2 > entry ? (T2 - entry)/risk : null;
+
+  const sec = secularScore(u.theme);
+  const RANK = Math.round(0.40*BASE + 0.25*DEATH + 0.15*PULSE + 0.20*sec.blended);
+
+  return {
+    sym: u.sym, u, meta: m, px, chg1d: c.length>1 ? (px/c[c.length-2]-1)*100 : 0,
+    DEATH, BASE, PULSE, sec, RANK, tier, capEvent,
+    dd: dd*100, uwWeeks: Math.round(uwWeeks), baseWeeks: Math.round(baseWeeks),
+    cycleHigh, cycleLow, baseRangeHigh, m200, m50, inval, entry, T1, T2, RR1, RR2,
+    rs20, ascending, w
+  };
+}
+
+function computeAll(){
+  S.scores = {};
+  activeUniverse().filter(u=>u.role==='asset').forEach(u=>{ S.scores[u.sym] = scoreSymbol(u); });
+  computeFade();
+}
+
+/* ============================================================
+   FADE ENGINE — sector-extreme snapback (PARIAH classic)
+   ============================================================ */
+function computeFade(){
+  const themes = {};
+  activeUniverse().filter(u=>u.role==='asset' && S.candles[u.sym]).forEach(u=>{
+    (themes[u.theme] = themes[u.theme] || []).push(u.sym);
+  });
+  const rows = [];
+  for(const [theme, syms] of Object.entries(themes)){
+    if(syms.length < 2) continue;
+    // build aligned daily return series per member over last ~70 sessions
+    const series = syms.map(s=>{
+      const d = S.candles[s]; const rets = {};
+      for(let i=1;i<d.c.length;i++){ rets[d.t[i]] = d.c[i]/d.c[i-1] - 1; }
+      return rets;
+    });
+    const common = Object.keys(series[0]).filter(t=>series.every(r=>t in r)).map(Number).sort((a,b)=>a-b).slice(-70);
+    if(common.length < 30) continue;
+    const secRets = common.map(t=>mean(series.map(r=>r[t])));
+    const today = last(secRets) * 100;
+    const hist = secRets.slice(0,-1).map(x=>x*100);
+    const mu = mean(hist), sd = stdev(hist);
+    const z = sd > 0 ? (today - mu)/sd : 0;
+    rows.push({ theme, syms, today: rnd(today,3), z: rnd(z,3),
+      extreme: Math.abs(z) >= 2, dir: z > 0 ? 'FADE ↓' : 'FADE ↑',
+      members: syms.map(s=>{ const d=S.candles[s]; const n=d.c.length; return { sym:s, chg: rnd((d.c[n-1]/d.c[n-2]-1)*100,3) }; }).sort((a,b)=>a.chg-b.chg)
+    });
+  }
+  rows.sort((a,b)=>b.today - a.today);
+  S.fade = { at: NOW(), rows };
+}
+
+/* ============================================================
+   UI
+   ============================================================ */
+const $ = s => document.querySelector(s);
+const $$ = s => Array.from(document.querySelectorAll(s));
+
+function toast(msg){
+  const t = $('#toast'); t.textContent = msg; t.classList.add('show');
+  clearTimeout(t._h); t._h = setTimeout(()=>t.classList.remove('show'), 2600);
+}
+
+function tierColor(t){ return t==='CONFIRMED' ? 'var(--lift)' : t==='EARLY' ? 'var(--ember)' : t==='WATCH' ? 'var(--dim)' : 'var(--dim)'; }
+
+function staleState(sym){
+  const m = S.meta[sym]; if(!m || !m.ok) return 'none';
+  const age = NOW() - m.at;
+  return age > STALE_HARD ? 'hard' : age > STALE_WARN ? 'warn' : 'fresh';
+}
+
+/* ---------- top strip ---------- */
+function renderStrip(){
+  const uni = activeUniverse().filter(u=>u.role==='asset');
+  const fresh = uni.filter(u=>staleState(u.sym)==='fresh').length;
+  const fails = uni.filter(u=>S.meta[u.sym] && S.meta[u.sym].ok===false).length;
+  const anyStale = uni.some(u=>['warn','hard'].includes(staleState(u.sym)));
+  const lf = S.settings.lastFullFetch;
+  $('#strip').innerHTML = `
+    <span class="s-item">${uni.length} ASSETS</span>
+    <span class="s-item ${fresh===uni.length?'ok':''}">${fresh} FRESH</span>
+    ${fails?`<span class="s-item bad">${fails} FAIL</span>`:''}
+    <span class="s-item">SYNC ${fmtAgo(lf)}</span>
+    ${S.fetching?`<span class="s-item ion">PULLING ${esc(S.fetchProgress)}</span>`:''}
+    ${anyStale && !S.fetching?`<span class="s-item warn">STALE — refresh before acting</span>`:''}`;
+}
+
+/* ---------- gravity map ---------- */
+let mapDots = [];
+function renderMap(){
+  const cv = $('#gmap'); if(!cv) return;
+  const dpr = window.devicePixelRatio || 1;
+  const W = cv.clientWidth, H = cv.clientHeight;
+  cv.width = W*dpr; cv.height = H*dpr;
+  const ctx = cv.getContext('2d'); ctx.scale(dpr,dpr);
+  ctx.clearRect(0,0,W,H);
+  const padL = 34, padR = 14, padT = 14, padB = 30;
+  const iw = W-padL-padR, ih = H-padT-padB;
+  // starfield (seeded, static per session)
+  if(!renderMap._stars){ renderMap._stars = Array.from({length:70},()=>({x:Math.random(),y:Math.random(),r:Math.random()*1.1+0.2,a:Math.random()*0.35+0.08})); }
+  renderMap._stars.forEach(s=>{ ctx.fillStyle=`rgba(200,206,218,${s.a})`; ctx.beginPath(); ctx.arc(padL+s.x*iw, padT+s.y*ih, s.r, 0, 7); ctx.fill(); });
+  // liftoff corridor (top-right)
+  const cx = padL + 0.55*iw, cy = padT;
+  ctx.fillStyle = 'rgba(122,162,255,0.055)';
+  ctx.fillRect(cx, cy, padL+iw-cx, 0.45*ih);
+  ctx.strokeStyle = 'rgba(122,162,255,0.25)'; ctx.setLineDash([4,4]);
+  ctx.strokeRect(cx, cy, padL+iw-cx, 0.45*ih); ctx.setLineDash([]);
+  ctx.fillStyle = 'rgba(122,162,255,0.6)'; ctx.font = '9px ui-monospace,monospace';
+  ctx.fillText('LIFTOFF CORRIDOR', cx+6, cy+12);
+  // grid
+  ctx.strokeStyle = 'rgba(27,33,48,0.9)';
+  for(let g=0; g<=4; g++){
+    const gx = padL + g*iw/4, gy = padT + g*ih/4;
+    ctx.beginPath(); ctx.moveTo(gx,padT); ctx.lineTo(gx,padT+ih); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(padL,gy); ctx.lineTo(padL+iw,gy); ctx.stroke();
+  }
+  ctx.fillStyle = 'rgba(107,115,133,0.9)'; ctx.font = '9px ui-monospace,monospace';
+  ctx.fillText('HOW DEAD →', padL+iw-64, H-8);
+  ctx.save(); ctx.translate(10, padT+58); ctx.rotate(-Math.PI/2); ctx.fillText('HOW READY →', 0, 0); ctx.restore();
+  // dots
+  mapDots = [];
+  const list = filteredScores();
+  list.forEach(sc=>{
+    if(sc.insufficient) return;
+    const x = padL + (sc.DEATH/100)*iw;
+    const y = padT + ih - (sc.BASE/100)*ih;
+    const r = 5 + (sc.sec.blended/100)*9;
+    const col = sc.tier==='CONFIRMED' ? '61,220,151' : sc.tier==='EARLY' ? '255,180,84' : '107,115,133';
+    ctx.shadowColor = `rgba(${col},0.8)`; ctx.shadowBlur = sc.tier ? 10 : 0;
+    ctx.fillStyle = `rgba(${col},${sc.tier?0.95:0.45})`;
+    ctx.beginPath(); ctx.arc(x,y,r,0,7); ctx.fill();
+    ctx.shadowBlur = 0;
+    if(sc.tier){ ctx.fillStyle = 'rgba(200,206,218,0.9)'; ctx.font = '8.5px ui-monospace,monospace'; ctx.fillText(sc.sym, x+r+2, y+3); }
+    mapDots.push({ x, y, r: Math.max(r,11), sym: sc.sym });
+  });
+}
+function mapTap(ev){
+  const cv = $('#gmap'); const b = cv.getBoundingClientRect();
+  const x = (ev.touches?ev.touches[0].clientX:ev.clientX) - b.left;
+  const y = (ev.touches?ev.touches[0].clientY:ev.clientY) - b.top;
+  let best = null, bd = 1e9;
+  mapDots.forEach(d=>{ const dist = Math.hypot(d.x-x, d.y-y); if(dist < d.r+8 && dist < bd){ bd = dist; best = d; } });
+  if(best) openDossier(best.sym);
+}
+
+/* ---------- list ---------- */
+function filteredScores(){
+  let list = Object.values(S.scores).filter(s=>!s.insufficient);
+  if(S.filterBucket !== 'ALL') list = list.filter(s=>s.u.bucket === S.filterBucket);
+  if(S.filterTier === 'SIGNAL') list = list.filter(s=>s.tier === 'EARLY' || s.tier === 'CONFIRMED');
+  else if(S.filterTier !== 'ALL') list = list.filter(s=>s.tier === S.filterTier);
+  if(S.filterTier === 'SIGNAL' || S.filterTier === 'EARLY' || S.filterTier === 'CONFIRMED'){
+    list = list.filter(s=>s.RR1 == null || s.RR1 >= S.settings.minRR || s.tier==='CONFIRMED');
+  }
+  return list.sort((a,b)=>b.RANK - a.RANK);
+}
+
+function microBar(v, col){ return `<span class="mb"><i style="width:${clamp(v,2,100)}%;background:${col}"></i></span>`; }
+
+function renderList(){
+  const list = filteredScores();
+  const insuf = Object.values(S.scores).filter(s=>s.insufficient);
+  const el = $('#lazlist');
+  if(!list.length && !insuf.length){
+    el.innerHTML = `<div class="empty">No data yet. Paste your Twelve Data key in settings, then hit SYNC.</div>`;
+    return;
+  }
+  el.innerHTML = list.map(sc=>{
+    const st = staleState(sc.sym);
+    return `<div class="row" data-sym="${esc(sc.sym)}">
+      <div class="r-main">
+        <div class="r-top">
+          <b>${esc(sc.sym)}</b>
+          ${sc.tier?`<span class="chip" style="color:${tierColor(sc.tier)};border-color:${tierColor(sc.tier)}">${sc.tier}</span>`:''}
+          ${sc.capEvent?`<span class="chip cap">⚡CAP</span>`:''}
+          ${st!=='fresh'?`<span class="chip warn">${st==='none'?'NO DATA':'STALE'}</span>`:''}
+        </div>
+        <div class="r-name">${esc(sc.u.name)} · ${esc(sc.u.theme)}</div>
+        <div class="r-bars">D${microBar(sc.DEATH,'var(--blood)')} B${microBar(sc.BASE,'var(--ember)')} P${microBar(sc.PULSE,'var(--lift)')}</div>
+      </div>
+      <div class="r-side">
+        <div class="r-px">${fmtPrice(sc.px)}</div>
+        <div class="r-rr">${sc.RR1!=null?('R/R '+sc.RR1.toFixed(1)):'—'}</div>
+        <div class="r-sec" title="secular"><i style="opacity:${0.25+sc.sec.blended/130}"></i>${sc.sec.blended}</div>
+      </div>
+    </div>`;
+  }).join('') + (insuf.length?`<div class="empty small">${insuf.length} symbol(s) lack history: ${insuf.map(s=>esc(s.sym)).join(', ')}</div>`:'');
+  $$('#lazlist .row').forEach(r=>r.addEventListener('click', ()=>openDossier(r.dataset.sym)));
+}
+
+/* ---------- dossier ---------- */
+function drawDossierChart(sc){
+  const cv = $('#dchart'); const dpr = window.devicePixelRatio || 1;
+  const W = cv.clientWidth, H = cv.clientHeight;
+  cv.width = W*dpr; cv.height = H*dpr;
+  const ctx = cv.getContext('2d'); ctx.scale(dpr,dpr); ctx.clearRect(0,0,W,H);
+  const d = S.candles[sc.sym]; if(!d) return;
+  const n = Math.min(d.c.length, 300), c = d.c.slice(-n);
+  const ma = sma(d.c, 200).slice(-n);
+  const lvls = [sc.inval, sc.T1, sc.T2, sc.entry].filter(x=>x!=null);
+  let lo = Math.min(...c, ...lvls), hi = Math.max(...c, ...lvls);
+  const pad = (hi-lo)*0.06; lo-=pad; hi+=pad;
+  const X = i => 6 + i*(W-12)/(n-1);
+  const Y = v => 8 + (H-16)*(1-(v-lo)/(hi-lo));
+  // base box
+  const startIdx = Math.max(0, n - Math.round(sc.baseWeeks*5) - 1);
+  ctx.fillStyle = 'rgba(255,180,84,0.07)';
+  ctx.fillRect(X(startIdx), Y(sc.baseRangeHigh), X(n-1)-X(startIdx), Y(sc.cycleLow)-Y(sc.baseRangeHigh));
+  // MA200
+  ctx.strokeStyle = 'rgba(122,162,255,0.7)'; ctx.lineWidth = 1; ctx.beginPath();
+  let st=false; ma.forEach((v,i)=>{ if(v==null) return; if(!st){ctx.moveTo(X(i),Y(v)); st=true;} else ctx.lineTo(X(i),Y(v)); }); ctx.stroke();
+  // price
+  ctx.strokeStyle = 'rgba(200,206,218,0.95)'; ctx.lineWidth = 1.4; ctx.beginPath();
+  c.forEach((v,i)=>{ i? ctx.lineTo(X(i),Y(v)) : ctx.moveTo(X(i),Y(v)); }); ctx.stroke();
+  // levels
+  const line = (v, col, lbl)=>{ if(v==null||v<lo||v>hi) return;
+    ctx.strokeStyle = col; ctx.setLineDash([5,4]); ctx.beginPath();
+    ctx.moveTo(6,Y(v)); ctx.lineTo(W-6,Y(v)); ctx.stroke(); ctx.setLineDash([]);
+    ctx.fillStyle = col; ctx.font='9px ui-monospace,monospace'; ctx.fillText(lbl+' '+fmtPrice(v), 8, Y(v)-3); };
+  line(sc.inval, 'rgba(255,92,92,0.9)', 'INVAL');
+  line(sc.T1, 'rgba(61,220,151,0.85)', 'T1');
+  line(sc.T2, 'rgba(61,220,151,0.55)', 'T2');
+  if(sc.tier==='CONFIRMED') line(sc.entry, 'rgba(255,180,84,0.9)', 'ENTRY');
+  // last dot
+  ctx.fillStyle = 'rgba(61,220,151,1)';
+  ctx.beginPath(); ctx.arc(X(n-1), Y(last(c)), 3, 0, 7); ctx.fill();
+}
+
+function entryPlan(sc){
+  if(sc.tier === 'CONFIRMED'){
+    return `Enter breakout/retest of ${fmtPrice(sc.entry)}. Invalidation: weekly close < ${fmtPrice(sc.inval)}. Structure confirmed — RS turned, base resolved.`;
+  }
+  if(sc.tier === 'EARLY'){
+    return `Stage 3 tranches: ⅓ now, ⅓ on base-low retest ~${fmtPrice(sc.cycleLow)}, ⅓ on RS flip. Invalidation: weekly close < ${fmtPrice(sc.inval)}. Left side — expect to be early, not wrong.`;
+  }
+  if(sc.tier === 'WATCH') return `Base immature (${sc.baseWeeks}w). No entry. Alert on higher-low sequence or capitulation print.`;
+  return `No setup. Outside criteria.`;
+}
+
+function openDossier(sym){
+  const sc = S.scores[sym]; if(!sc || sc.insufficient){ toast('Insufficient history for '+sym); return; }
+  S.selected = sym;
+  const m = S.meta[sym] || {};
+  const st = staleState(sym);
+  const srcName = sc.u.src==='cg' ? 'CoinGecko' : 'Twelve Data' + (sc.u.src==='asx'?' · ASX':'');
+  const fl = sc.sec.flow;
+  $('#dbody').innerHTML = `
+    <div class="d-head"><b>${esc(sym)}</b><span>${esc(sc.u.name)} · ${esc(sc.u.theme)} · ${esc(sc.u.bucket)}</span></div>
+    <div class="proto ${st!=='fresh'?'stale':''}">
+      <div class="p-px">${fmtPrice(sc.px)} <em class="${sc.chg1d>=0?'up':'dn'}">${sc.chg1d>=0?'+':''}${sc.chg1d.toFixed(2)}%</em></div>
+      <div class="p-src">LIVE ▸ ${srcName} ▸ fetched ${fmtAgo(m.at)}${st!=='fresh'?' — <b>STALE, refresh before acting</b>':''}</div>
+    </div>
+    <canvas id="dchart"></canvas>
+    <div class="d-tier" style="color:${tierColor(sc.tier)}">${sc.tier || 'NO TIER'}${sc.capEvent?' · ⚡ CAPITULATION PRINT':''}</div>
+    <div class="d-plan">${entryPlan(sc)}</div>
+    <div class="d-grid">
+      <div><label>DEATH ${sc.DEATH}</label>${microBar(sc.DEATH,'var(--blood)')}<span>-${sc.dd.toFixed(0)}% · ${sc.uwWeeks}w under</span></div>
+      <div><label>BASE ${sc.BASE}</label>${microBar(sc.BASE,'var(--ember)')}<span>${sc.baseWeeks}w · ${sc.ascending} higher low(s)</span></div>
+      <div><label>PULSE ${sc.PULSE}</label>${microBar(sc.PULSE,'var(--lift)')}<span>RS20 ${sc.rs20!=null?sc.rs20.toFixed(1)+'%':'—'}</span></div>
+      <div><label>SECULAR ${sc.sec.blended}</label>${microBar(sc.sec.blended,'var(--ion)')}<span>cur ${sc.sec.curated} · flow ${fl.score}${sc.sec.ai!=null?' · ai '+sc.sec.ai:''}</span></div>
+    </div>
+    <div class="d-levels">
+      <div><span>ENTRY</span><b>${fmtPrice(sc.entry)}</b></div>
+      <div><span>INVAL</span><b class="dn">${fmtPrice(sc.inval)}</b></div>
+      <div><span>T1 .382</span><b class="up">${fmtPrice(sc.T1)}</b></div>
+      <div><span>T2 .618</span><b class="up">${fmtPrice(sc.T2)}</b></div>
+      <div><span>R/R T1</span><b>${sc.RR1!=null?sc.RR1.toFixed(1):'—'}</b></div>
+      <div><span>R/R T2</span><b>${sc.RR2!=null?sc.RR2.toFixed(1):'—'}</b></div>
+    </div>
+    <div class="d-flow">FLOW ▸ ${fl.etf?esc(fl.etf)+' $vol 20v60 '+(fl.volTrend>=0?'+':'')+fl.volTrend+'% · RS60 '+(fl.rs>=0?'+':'')+fl.rs+'%':'no proxy ETF for theme'}${S.secular.aiNotes[sym]?`<div class="ai-note">COUNCIL ▸ ${esc(S.secular.aiNotes[sym])}</div>`:''}</div>
+  `;
+  $('#dossier').classList.add('open'); $('#shade').classList.add('open');
+  requestAnimationFrame(()=>drawDossierChart(sc));
+}
+function closeSheets(){ $$('.sheet').forEach(s=>s.classList.remove('open')); $('#shade').classList.remove('open'); }
+
+/* ---------- FADE view ---------- */
+function renderFade(){
+  const el = $('#fadebody');
+  if(!S.fade || !S.fade.rows.length){ el.innerHTML = `<div class="empty">No sector data yet. SYNC first.</div>`; return; }
+  const rows = S.fade.rows;
+  const maxAbs = Math.max(...rows.map(r=>Math.abs(r.today)), 0.5);
+  el.innerHTML = `<div class="f-note">Sector daily move vs its own 60-session distribution. |z| ≥ 2 = extreme → fade, 1–5d horizon.</div>` +
+    rows.map(r=>`
+    <div class="f-row ${r.extreme?'ext':''}" data-theme="${esc(r.theme)}">
+      <div class="f-name">${esc(r.theme)}</div>
+      <div class="f-barwrap">
+        <div class="f-bar ${r.today>=0?'up':'dn'}" style="width:${Math.abs(r.today)/maxAbs*100}%"></div>
+      </div>
+      <div class="f-num ${r.today>=0?'up':'dn'}">${r.today>=0?'+':''}${r.today.toFixed(2)}%</div>
+      <div class="f-z">${r.extreme?`<b>z ${r.z.toFixed(1)} ${r.dir}</b>`:`z ${r.z.toFixed(1)}`}</div>
+    </div>
+    <div class="f-members" id="fm-${esc(r.theme).replace(/[^A-Z0-9]/gi,'_')}">${r.members.map(m=>`<span>${esc(m.sym)} <em class="${m.chg>=0?'up':'dn'}">${m.chg>=0?'+':''}${m.chg}%</em></span>`).join('')}</div>
+  `).join('');
+  $$('.f-row').forEach(r=>r.addEventListener('click', ()=>{
+    const id = '#fm-' + r.dataset.theme.replace(/[^A-Z0-9]/gi,'_');
+    $(id).classList.toggle('open');
+  }));
+}
+
+/* ---------- settings ---------- */
+function openSettings(){
+  const s = S.settings;
+  $('#setbody').innerHTML = `
+    <h3>KEYS</h3>
+    <label class="fld">Twelve Data key<input id="in-td" type="text" value="${esc(s.tdKey)}" placeholder="required for equities/spot" autocomplete="off"></label>
+    <label class="fld">Anthropic key (optional, council)<input id="in-anth" type="text" value="${esc(s.anthKey)}" placeholder="sk-ant-… stays in this browser" autocomplete="off"></label>
+    <label class="fld">Council model<input id="in-model" type="text" value="${esc(s.anthModel)}"></label>
+    <h3>SECULAR BLEND</h3>
+    <label class="fld">Curated ${s.wCurated}<input id="w-c" type="range" min="0" max="100" value="${s.wCurated}"></label>
+    <label class="fld">Flow proxies ${s.wFlow}<input id="w-f" type="range" min="0" max="100" value="${s.wFlow}"></label>
+    <label class="fld">AI council ${s.wAI}<input id="w-a" type="range" min="0" max="100" value="${s.wAI}"></label>
+    <h3>THRESHOLDS</h3>
+    <label class="fld">Min R/R for signals: ${s.minRR}<input id="in-rr" type="range" min="1" max="6" step="0.5" value="${s.minRR}"></label>
+    <label class="fld">DEATH floor: ${s.deathFloor}<input id="in-df" type="range" min="30" max="80" step="5" value="${s.deathFloor}"></label>
+    <h3>CURATED THEME SCORES</h3>
+    <div class="themes">${Object.keys(S.secular.curated).sort().map(t=>`
+      <label class="t-row"><span>${esc(t)}${S.secular.ai[t]!=null?` <em class="ion">ai ${S.secular.ai[t]}</em>`:''}</span>
+      <input type="number" min="0" max="100" data-theme="${esc(t)}" value="${S.secular.curated[t]}"></label>`).join('')}
+    </div>
+    <div class="btnrow">
+      <button id="btn-council" class="btn ion">RUN COUNCIL</button>
+      <button id="btn-uni" class="btn">UNIVERSE</button>
+    </div>
+    <div class="btnrow">
+      <button id="btn-export" class="btn">EXPORT</button>
+      <button id="btn-import" class="btn">IMPORT</button>
+      <button id="btn-clear" class="btn bad">CLEAR CACHE</button>
+    </div>
+    <div id="councilout" class="c-out"></div>
+  `;
+  const save = ()=>{
+    if(!$('#in-td')) return;
+    s.tdKey = $('#in-td').value.trim(); s.anthKey = $('#in-anth').value.trim(); s.anthModel = $('#in-model').value.trim() || 'claude-sonnet-4-6';
+    s.wCurated = +$('#w-c').value; s.wFlow = +$('#w-f').value; s.wAI = +$('#w-a').value;
+    s.minRR = +$('#in-rr').value; s.deathFloor = +$('#in-df').value;
+    saveJSON(LS.settings, s);
+    $$('#setbody .themes input').forEach(inp=>{ S.secular.curated[inp.dataset.theme] = clamp(+inp.value||0,0,100); });
+    saveJSON(LS.secular, S.secular);
+    computeAll(); render();
+  };
+  $('#setbody').onchange = save;   // property assignment: replaced on reopen, no ghost handlers
+  $('#btn-council').addEventListener('click', runCouncil);
+  $('#btn-uni').addEventListener('click', openUniverse);
+  $('#btn-export').addEventListener('click', exportAll);
+  $('#btn-import').addEventListener('click', importAll);
+  $('#btn-clear').addEventListener('click', ()=>{
+    if(!confirm('Clear all cached candles?')) return;
+    S.universe.forEach(u=>localStorage.removeItem(LS.candlePrefix+u.sym));
+    S.candles = {}; S.meta = {}; saveJSON(LS.meta, S.meta); computeAll(); render(); toast('Cache cleared');
+  });
+  $('#settings').classList.add('open'); $('#shade').classList.add('open');
+}
+
+function openUniverse(){
+  $('#setbody').onchange = null;   // detach settings saver while universe view owns the panel
+  const rows = S.universe.map((u,i)=>`
+    <label class="u-row"><input type="checkbox" data-i="${i}" ${u.on!==false?'checked':''}>
+    <b>${esc(u.sym)}</b><span>${esc(u.bucket)} · ${esc(u.theme)} · ${esc(u.src)}${S.meta[u.sym]&&S.meta[u.sym].ok===false?` <em class="bad">FAIL: ${esc(S.meta[u.sym].err||'')}</em>`:''}</span></label>`).join('');
+  $('#setbody').innerHTML = `<h3>UNIVERSE</h3><div class="u-list">${rows}</div>
+    <h3>ADD SYMBOL</h3>
+    <div class="addrow">
+      <input id="a-sym" placeholder="SYM or coingecko-id">
+      <select id="a-src"><option value="td">US (TD)</option><option value="asx">ASX (TD)</option><option value="td_fx">Spot pair</option><option value="cg">Crypto (CG)</option></select>
+      <input id="a-theme" placeholder="THEME">
+      <button id="a-add" class="btn">ADD</button>
+    </div>
+    <div class="btnrow"><button id="btn-back" class="btn">← SETTINGS</button></div>`;
+  $$('.u-list input').forEach(cb=>cb.addEventListener('change', ()=>{
+    S.universe[+cb.dataset.i].on = cb.checked; saveJSON(LS.universe, S.universe); computeAll(); render();
+  }));
+  $('#a-add').addEventListener('click', ()=>{
+    const raw = $('#a-sym').value.trim(); if(!raw) return;
+    const src = $('#a-src').value;
+    const theme = ($('#a-theme').value.trim() || 'UNTHEMED').toUpperCase();
+    const sym = src==='cg' ? raw.toUpperCase().replace(/-/g,'').slice(0,8) : raw.toUpperCase();
+    const item = { sym, name: raw, src, bucket: src==='cg'?'CRYPTO':src==='asx'?'ASX':'THEME', theme, role:'asset', on:true };
+    if(src==='cg') item.id = raw.toLowerCase();
+    S.universe.push(item);
+    if(!(theme in S.secular.curated)) S.secular.curated[theme] = 50;
+    saveJSON(LS.universe, S.universe); saveJSON(LS.secular, S.secular);
+    toast(sym+' added — SYNC to fetch'); openUniverse();
+  });
+  $('#btn-back').addEventListener('click', openSettings);
+}
+
+function exportAll(){
+  const blob = { settings:S.settings, universe:S.universe, secular:S.secular };
+  navigator.clipboard.writeText(JSON.stringify(blob)).then(()=>toast('Config copied to clipboard')).catch(()=>prompt('Copy config:', JSON.stringify(blob)));
+}
+function importAll(){
+  const raw = prompt('Paste config JSON:'); if(!raw) return;
+  try{
+    const b = JSON.parse(raw);
+    if(b.settings) { S.settings = Object.assign(defaultSettings(), b.settings); saveJSON(LS.settings, S.settings); }
+    if(b.universe) { S.universe = b.universe; saveJSON(LS.universe, S.universe); }
+    if(b.secular)  { S.secular = b.secular; saveJSON(LS.secular, S.secular); }
+    computeAll(); render(); toast('Imported');
+  }catch(e){ toast('Bad JSON'); }
+}
+
+/* ---------- AI COUNCIL (BYO key, browser-direct) ---------- */
+async function runCouncil(){
+  const s = S.settings;
+  if(!s.anthKey){ toast('Anthropic key needed for council'); return; }
+  const out = $('#councilout'); out.textContent = 'COUNCIL DELIBERATING…';
+  const themes = Object.keys(S.secular.curated).map(t=>({ t, curated: S.secular.curated[t], flow: flowScore(t).score }));
+  const cands = filteredScores().filter(x=>x.tier).slice(0,14).map(x=>({ sym:x.sym, theme:x.u.theme, tier:x.tier, death:x.DEATH, base:x.BASE, pulse:x.PULSE, dd:Math.round(x.dd), rr: x.RR1!=null?+x.RR1.toFixed(1):null }));
+  const prompt = `You are the secular-flows council for a 12+ month accumulation terminal. Thesis: society is heading into an advanced buildout — robotics, AI/ASI infrastructure, space expansion, electrification, hard-asset constraints. Score each theme 0-100 for expected FUTURE capital inflows over 1-3 years (not current momentum). Then give a one-line note (max 110 chars) for each candidate: does its drawdown look like denial of a knowable shift, or a correctly dying story?
+THEMES: ${JSON.stringify(themes)}
+CANDIDATES: ${JSON.stringify(cands)}
+Respond ONLY with minified JSON, no markdown, no preamble: {"themes":{"THEME NAME":score,...},"notes":{"SYM":"note",...}}`;
+  try{
+    const r = await fetch('https://api.anthropic.com/v1/messages', {
+      method:'POST',
+      headers:{ 'content-type':'application/json', 'x-api-key': s.anthKey, 'anthropic-version':'2023-06-01', 'anthropic-dangerous-direct-browser-access':'true' },
+      body: JSON.stringify({ model: s.anthModel, max_tokens: 1500, messages:[{ role:'user', content: prompt }] })
+    });
+    const j = await r.json();
+    if(j.error) throw new Error(j.error.message || 'API error');
+    const text = (j.content||[]).filter(b=>b.type==='text').map(b=>b.text).join('\n');
+    const clean = text.replace(/```json|```/g,'').trim();
+    const parsed = JSON.parse(clean);
+    if(parsed.themes){ for(const [t,v] of Object.entries(parsed.themes)) if(t in S.secular.curated) S.secular.ai[t] = clamp(Math.round(+v),0,100); }
+    if(parsed.notes){ S.secular.aiNotes = parsed.notes; }
+    S.secular.aiAt = NOW(); saveJSON(LS.secular, S.secular);
+    computeAll(); render();
+    out.textContent = 'COUNCIL UPDATED ' + Object.keys(parsed.themes||{}).length + ' themes, ' + Object.keys(parsed.notes||{}).length + ' notes ▸ ' + new Date().toLocaleTimeString();
+  }catch(e){ out.textContent = 'COUNCIL ERROR ▸ ' + (e.message||e); }
+}
+
+/* ---------- top-level render / init ---------- */
+function render(){
+  renderStrip();
+  const laz = S.mode === 'LAZ';
+  $('#view-laz').style.display = laz ? '' : 'none';
+  $('#view-fade').style.display = laz ? 'none' : '';
+  $('#seg-laz').classList.toggle('on', laz);
+  $('#seg-fade').classList.toggle('on', !laz);
+  if(laz){ renderMap(); renderList(); } else renderFade();
+}
+
+function init(){
+  initState();
+  $('#seg-laz').addEventListener('click', ()=>{ S.mode='LAZ'; saveJSON(LS.mode,S.mode); render(); });
+  $('#seg-fade').addEventListener('click', ()=>{ S.mode='FADE'; saveJSON(LS.mode,S.mode); render(); });
+  $('#btn-sync').addEventListener('click', ()=>refreshAll(false));
+  $('#btn-sync').addEventListener('dblclick', ()=>refreshAll(true));
+  $('#btn-gear').addEventListener('click', openSettings);
+  $('#shade').addEventListener('click', closeSheets);
+  $$('.sheet .x').forEach(x=>x.addEventListener('click', closeSheets));
+  $('#gmap').addEventListener('click', mapTap);
+  $$('#tierchips .chip').forEach(c=>c.addEventListener('click', ()=>{ S.filterTier = c.dataset.v; $$('#tierchips .chip').forEach(x=>x.classList.toggle('on', x===c)); render(); }));
+  $$('#bucketchips .chip').forEach(c=>c.addEventListener('click', ()=>{ S.filterBucket = c.dataset.v; $$('#bucketchips .chip').forEach(x=>x.classList.toggle('on', x===c)); render(); }));
+  window.addEventListener('resize', ()=>{ if(S.mode==='LAZ') renderMap(); });
+  computeAll(); render();
+  if(!Object.keys(S.candles).length) toast('First run: open ⚙, paste Twelve Data key, hit SYNC');
+}
+document.addEventListener('DOMContentLoaded', init);
+
+</script>
+</body>
+</html>
