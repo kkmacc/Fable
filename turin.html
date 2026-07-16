@@ -1,0 +1,1002 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TURIN // FABLE — Regime &amp; Exposure Dial</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+/* ============ FABLE TOKENS ============ */
+:root{
+  --bg:#0a0a0c; --panel:#131316; --panel2:#1a1a1f; --line:#26262c;
+  --ink:#e9e4d8; --dim:#8b8578; --faint:#55514a;
+  --ember:#ff6b2b; --ember2:#ffa04d;
+  --pos:#3ecf7a; --neu:#f5b532; --neg:#ff4d4d; --proxy:#4dc3ff; --manual:#c792ea;
+  --r:10px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{-webkit-text-size-adjust:100%}
+body{
+  background:var(--bg); color:var(--ink);
+  font-family:'JetBrains Mono',monospace; font-size:13px; line-height:1.5;
+  padding:14px; max-width:1180px; margin:0 auto;
+}
+h1,h2,h3,.disp{font-family:'Rajdhani',sans-serif; text-transform:uppercase; letter-spacing:.06em}
+a{color:var(--ember2); text-decoration:none}
+canvas{display:block; width:100%}
+
+/* header */
+.hdr{display:flex; align-items:baseline; gap:12px; flex-wrap:wrap; margin-bottom:14px}
+.hdr h1{font-size:30px; font-weight:700; letter-spacing:.12em}
+.hdr h1 span{color:var(--ember)}
+.hdr .tag{color:var(--dim); font-size:11px; letter-spacing:.08em}
+.hdr .right{margin-left:auto; display:flex; gap:8px; align-items:center; flex-wrap:wrap}
+.btn{
+  background:var(--panel2); border:1px solid var(--line); color:var(--ink);
+  font-family:'JetBrains Mono',monospace; font-size:11px; letter-spacing:.08em;
+  padding:7px 14px; border-radius:6px; cursor:pointer; text-transform:uppercase;
+}
+.btn:hover{border-color:var(--ember); color:var(--ember2)}
+.btn:focus-visible{outline:2px solid var(--ember); outline-offset:2px}
+
+/* badges */
+.bdg{display:inline-block; font-size:10px; letter-spacing:.1em; padding:2px 8px; border-radius:4px; border:1px solid; text-transform:uppercase; white-space:nowrap}
+.b-live{color:var(--pos); border-color:var(--pos)}
+.b-proxy{color:var(--proxy); border-color:var(--proxy)}
+.b-manual{color:var(--manual); border-color:var(--manual)}
+.b-stale{color:var(--neg); border-color:var(--neg)}
+.b-wait{color:var(--dim); border-color:var(--line)}
+.b-off{color:var(--faint); border-color:var(--line); text-decoration:line-through}
+
+/* panels */
+.panel{background:var(--panel); border:1px solid var(--line); border-radius:var(--r); padding:16px; margin-bottom:14px}
+.panel h2{font-size:15px; color:var(--ember2); margin-bottom:10px; letter-spacing:.1em}
+.panel h2 .sub{color:var(--faint); font-size:11px; letter-spacing:.06em; margin-left:8px; text-transform:none; font-family:'JetBrains Mono',monospace}
+
+/* ============ HERO DIAL ============ */
+.hero{background:linear-gradient(180deg,var(--panel) 0%,#101014 100%); border:1px solid var(--line); border-radius:var(--r); padding:20px 16px; margin-bottom:14px; position:relative; overflow:hidden}
+.hero::before{content:""; position:absolute; inset:0 0 auto 0; height:2px; background:linear-gradient(90deg,var(--neg),var(--neu),var(--pos))}
+.hero .staterow{display:flex; align-items:center; gap:18px; flex-wrap:wrap}
+.hero .word{font-family:'Rajdhani'; font-size:52px; font-weight:700; line-height:1; letter-spacing:.05em}
+.hero .score{font-size:13px; color:var(--dim)}
+.hero .score b{color:var(--ink); font-size:16px}
+.dialtrack{position:relative; height:34px; border-radius:8px; margin:16px 0 6px; background:linear-gradient(90deg, rgba(255,77,77,.28) 0 33.3%, rgba(245,181,50,.22) 33.3% 66.6%, rgba(62,207,122,.25) 66.6% 100%); border:1px solid var(--line)}
+.dialtrack .seg{position:absolute; top:0; bottom:0; display:flex; align-items:center; justify-content:center; font-size:11px; letter-spacing:.15em; color:var(--dim)}
+.dialtrack .needle{position:absolute; top:-7px; bottom:-7px; width:3px; background:var(--ink); border-radius:2px; box-shadow:0 0 10px rgba(255,107,43,.9); transition:left .6s cubic-bezier(.2,.8,.2,1)}
+.dialtrack .needle::after{content:""; position:absolute; top:-6px; left:50%; transform:translateX(-50%); border:6px solid transparent; border-top-color:var(--ember)}
+.dialscale{display:flex; justify-content:space-between; font-size:10px; color:var(--faint); letter-spacing:.1em; margin-bottom:14px}
+.playbook{border-left:3px solid var(--ember); background:var(--panel2); padding:10px 12px; border-radius:0 6px 6px 0; font-size:12px; color:var(--ink)}
+.playbook .pb-t{color:var(--ember2); font-size:10px; letter-spacing:.15em; text-transform:uppercase; margin-bottom:4px}
+.hero .meta{display:flex; gap:14px; flex-wrap:wrap; margin-top:12px; font-size:11px; color:var(--dim); align-items:center}
+.codexrow{display:flex; align-items:center; gap:8px; cursor:pointer; user-select:none}
+.codexrow input{accent-color:var(--ember); width:15px; height:15px; cursor:pointer}
+
+/* ============ DATA TABLE ============ */
+table{width:100%; border-collapse:collapse; font-size:12px}
+th{color:var(--faint); font-size:10px; letter-spacing:.12em; text-transform:uppercase; text-align:left; padding:5px 8px; border-bottom:1px solid var(--line)}
+td{padding:6px 8px; border-bottom:1px solid #1d1d22; vertical-align:top}
+td.v{font-weight:700; white-space:nowrap}
+td.src{color:var(--dim); font-size:11px}
+.tblwrap{overflow-x:auto}
+
+/* ============ LAYER CARDS ============ */
+.grid4{display:grid; grid-template-columns:repeat(auto-fit,minmax(240px,1fr)); gap:12px; margin-bottom:14px}
+.card{background:var(--panel); border:1px solid var(--line); border-radius:var(--r); padding:14px}
+.card .top{display:flex; justify-content:space-between; align-items:center; margin-bottom:8px}
+.card h3{font-size:14px; letter-spacing:.12em; color:var(--ink)}
+.chip{font-size:11px; font-weight:700; letter-spacing:.1em; padding:3px 10px; border-radius:5px}
+.c-pos{background:rgba(62,207,122,.15); color:var(--pos); border:1px solid var(--pos)}
+.c-neu{background:rgba(245,181,50,.12); color:var(--neu); border:1px solid var(--neu)}
+.c-neg{background:rgba(255,77,77,.14); color:var(--neg); border:1px solid var(--neg)}
+.c-off{background:transparent; color:var(--faint); border:1px solid var(--line)}
+.kv{display:flex; justify-content:space-between; gap:8px; font-size:11.5px; padding:2px 0}
+.kv .k{color:var(--dim)}
+.kv .x{color:var(--ink); font-weight:700; text-align:right}
+.card canvas{margin-top:8px; height:44px}
+
+/* event flags */
+.flags{display:grid; grid-template-columns:repeat(auto-fit,minmax(170px,1fr)); gap:10px}
+.flag{border:1px solid var(--line); border-radius:8px; padding:10px 12px; background:var(--panel2)}
+.flag .fn{font-size:11px; letter-spacing:.12em; color:var(--dim); text-transform:uppercase}
+.flag .fs{font-family:'Rajdhani'; font-size:20px; font-weight:700; letter-spacing:.05em}
+.flag .fd{font-size:10px; color:var(--faint)}
+.f-armed .fs{color:var(--neu)} .f-trig .fs{color:var(--neg)} .f-clear .fs{color:var(--faint)} .f-buy .fs{color:var(--pos)}
+.f-trig{border-color:var(--neg); box-shadow:0 0 12px rgba(255,77,77,.25)}
+.f-buy.f-on{border-color:var(--pos); box-shadow:0 0 12px rgba(62,207,122,.25)}
+
+/* charts */
+.chart{margin-bottom:6px}
+.chart .cl{display:flex; gap:12px; flex-wrap:wrap; font-size:10px; color:var(--dim); letter-spacing:.06em; margin:4px 0 8px}
+.cl i{display:inline-block; width:14px; height:3px; border-radius:2px; margin-right:5px; vertical-align:middle}
+
+/* forms / details */
+details{border:1px solid var(--line); border-radius:var(--r); background:var(--panel); margin-bottom:14px}
+summary{cursor:pointer; padding:13px 16px; font-family:'Rajdhani'; font-size:14px; letter-spacing:.1em; text-transform:uppercase; color:var(--ember2); list-style:none}
+summary::before{content:"▸ "; color:var(--faint)}
+details[open] summary::before{content:"▾ "}
+details .inner{padding:0 16px 16px}
+.mrow{display:grid; grid-template-columns:1fr 110px 130px 90px; gap:8px; align-items:center; padding:6px 0; border-bottom:1px solid #1d1d22}
+.mrow label{font-size:11.5px; color:var(--dim)}
+input[type=number],input[type=date]{
+  background:var(--bg); border:1px solid var(--line); color:var(--ink);
+  font-family:'JetBrains Mono',monospace; font-size:12px; padding:6px 8px; border-radius:6px; width:100%;
+}
+input:focus-visible{outline:2px solid var(--ember); outline-offset:1px}
+.note{font-size:11px; color:var(--dim); margin-top:8px; line-height:1.55}
+.note b{color:var(--ember2)}
+.doct td{font-size:11px}
+.doct .lesson{color:var(--neu)}
+#fetchlog{font-size:10.5px; color:var(--dim); max-height:220px; overflow-y:auto; line-height:1.7}
+#fetchlog .ok{color:var(--pos)} #fetchlog .er{color:var(--neg)}
+
+.ftr{color:var(--faint); font-size:10.5px; line-height:1.7; padding:10px 4px 30px}
+.ftr b{color:var(--dim)}
+
+@media (max-width:640px){
+  body{padding:10px}
+  .hero .word{font-size:38px}
+  .mrow{grid-template-columns:1fr 1fr; }
+  .mrow label{grid-column:1/-1}
+}
+@media (prefers-reduced-motion: reduce){ .dialtrack .needle{transition:none} }
+</style>
+</head>
+<body>
+
+<header class="hdr">
+  <h1>TURIN<span>//</span>FABLE</h1>
+  <div class="tag">REGIME &amp; EXPOSURE DIAL — turintrader doctrine, Fable implementation · v1.0</div>
+  <div class="right">
+    <span id="masterbadge" class="bdg b-wait">AWAITING DATA</span>
+    <button class="btn" id="refreshbtn">Refresh feeds</button>
+  </div>
+</header>
+
+<!-- ============ HERO ============ -->
+<section class="hero" id="hero">
+  <div class="staterow">
+    <div class="word" id="stateword" style="color:var(--faint)">STANDBY</div>
+    <div class="score">
+      OSC <b id="oscval">—</b> &nbsp;·&nbsp; CONFIDENCE <b id="confval">—</b><br>
+      <span id="asof" style="color:var(--faint)">no verified data loaded yet</span>
+    </div>
+  </div>
+  <div class="dialtrack" aria-hidden="true">
+    <div class="seg" style="left:0;width:33.3%">−1 DEFENSIVE</div>
+    <div class="seg" style="left:33.3%;width:33.3%">0 REDUCE</div>
+    <div class="seg" style="left:66.6%;width:33.4%">+1 RISK ON</div>
+    <div class="needle" id="needle" style="left:50%"></div>
+  </div>
+  <div class="dialscale"><span>−1.0</span><span>−0.35</span><span>0</span><span>+0.35</span><span>+1.0</span></div>
+  <div class="playbook">
+    <div class="pb-t" id="pbtitle">Playbook</div>
+    <div id="pbtext">Waiting on live feeds. Nothing here is seeded or remembered — every value on this page is fetched fresh on load and stamped with its source.</div>
+  </div>
+  <div class="meta">
+    <label class="codexrow"><input type="checkbox" id="codextoggle" checked> CODEX overlay (no leverage, metals core untouched)</label>
+    <span id="histnote"></span>
+  </div>
+</section>
+
+<!-- ============ VERIFIED INPUTS ============ -->
+<section class="panel">
+  <h2>Verified inputs <span class="sub">source-of-truth first · nothing carried forward</span></h2>
+  <div class="tblwrap"><table id="datatable">
+    <thead><tr><th>Input</th><th>Value</th><th>As of</th><th>Source</th><th>Status</th></tr></thead>
+    <tbody id="databody"><tr><td colspan="5" style="color:var(--faint)">fetching…</td></tr></tbody>
+  </table></div>
+</section>
+
+<!-- ============ LAYER CARDS ============ -->
+<div class="grid4" id="cards">
+  <div class="card" id="card-vol">
+    <div class="top"><h3>Vol structure</h3><span class="chip c-off" id="chip-vol">—</span></div>
+    <div id="kv-vol"></div><canvas id="spark-vol" height="44"></canvas>
+  </div>
+  <div class="card" id="card-credit">
+    <div class="top"><h3>Credit</h3><span class="chip c-off" id="chip-credit">—</span></div>
+    <div id="kv-credit"></div><canvas id="spark-credit" height="44"></canvas>
+  </div>
+  <div class="card" id="card-breadth">
+    <div class="top"><h3>Breadth</h3><span class="chip c-off" id="chip-breadth">—</span></div>
+    <div id="kv-breadth"></div><canvas id="spark-breadth" height="44"></canvas>
+  </div>
+  <div class="card" id="card-trend">
+    <div class="top"><h3>Trend</h3><span class="chip c-off" id="chip-trend">—</span></div>
+    <div id="kv-trend"></div><canvas id="spark-trend" height="44"></canvas>
+  </div>
+</div>
+
+<!-- ============ EVENT FLAGS ============ -->
+<section class="panel">
+  <h2>Event flags <span class="sub">tops are processes · bottoms are events</span></h2>
+  <div class="flags">
+    <div class="flag f-clear" id="flag-top"><div class="fn">Major top watch</div><div class="fs">—</div><div class="fd"></div></div>
+    <div class="flag f-clear" id="flag-swh"><div class="fn">Swing high</div><div class="fs">—</div><div class="fd"></div></div>
+    <div class="flag f-clear f-buy" id="flag-swl"><div class="fn">Swing low</div><div class="fs">—</div><div class="fd"></div></div>
+    <div class="flag f-clear f-buy" id="flag-bot"><div class="fn">Major bottom</div><div class="fs">—</div><div class="fd"></div></div>
+  </div>
+  <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:12px" id="ltrow"></div>
+</section>
+
+<!-- ============ CHARTS ============ -->
+<section class="panel">
+  <h2>SPY · Hull trend · regime ribbon</h2>
+  <div class="chart"><canvas id="ch-spy" height="240"></canvas>
+  <div class="cl"><span><i style="background:var(--ink)"></i>SPY</span><span><i style="background:var(--ember)"></i>HULL(55)</span><span><i style="background:rgba(62,207,122,.6)"></i>ribbon +1</span><span><i style="background:rgba(245,181,50,.6)"></i>0</span><span><i style="background:rgba(255,77,77,.6)"></i>−1</span></div></div>
+
+  <h2>VIX3M : VIX term structure <span class="sub">adaptive complacency / fear zones</span></h2>
+  <div class="chart"><canvas id="ch-ts" height="200"></canvas>
+  <div class="cl"><span><i style="background:var(--proxy)"></i>VIX3M/VIX</span><span><i style="background:var(--ember)"></i>smoothed</span><span><i style="background:var(--faint)"></i>linreg mid ±1.5σ</span><span><i style="background:var(--neg)"></i>1.00 backwardation line</span></div></div>
+
+  <h2>TURIN oscillator history</h2>
+  <div class="chart"><canvas id="ch-osc" height="120"></canvas>
+  <div class="cl"><span>history uses proxy breadth only — manual internals affect the live reading, never the backfill</span></div></div>
+
+  <h2>Credit stress <span class="sub">HY OAS z · curve curvature</span></h2>
+  <div class="chart"><canvas id="ch-credit" height="160"></canvas>
+  <div class="cl"><span><i style="background:var(--neg)"></i>HY OAS 252d z</span><span><i style="background:var(--manual)"></i>(VIX3M−VIX6M)/VIX curvature — low = steep contango = complacent</span></div></div>
+</section>
+
+<!-- ============ MANUAL INTERNALS ============ -->
+<details id="manualpanel">
+  <summary>Manual internals — true NYSE/R3K breadth (optional)</summary>
+  <div class="inner">
+    <div class="note" style="margin-bottom:8px">True exchange internals have no keyless public feed. Paste them from TradingView when you have them. Each value carries its own as-of date, is badged <b>MANUAL</b>, and is <b>auto-expired after 3 trading days</b> — a stale value drops out of the composite entirely rather than being carried forward.</div>
+    <div class="mrow"><label>R3K % of stocks above 20d SMA (swing-low detector, &lt;20 = washout)</label><input type="number" id="m-pct20" step="0.1" min="0" max="100" placeholder="—"><input type="date" id="m-pct20-d"><span class="bdg b-off" id="m-pct20-b">EMPTY</span></div>
+    <div class="mrow"><label>NYSE cumulative A/D line 20d z-score (regime)</label><input type="number" id="m-adlz" step="0.01" placeholder="—"><input type="date" id="m-adlz-d"><span class="bdg b-off" id="m-adlz-b">EMPTY</span></div>
+    <div class="mrow"><label>NYSE 52w new highs − new lows, ratio-adjusted (LT regime)</label><input type="number" id="m-nhnl" step="0.1" placeholder="—"><input type="date" id="m-nhnl-d"><span class="bdg b-off" id="m-nhnl-b">EMPTY</span></div>
+    <div class="mrow"><label>NYSE up/down volume ratio (major-bottom detector, ≥9 = thrust)</label><input type="number" id="m-advol" step="0.1" min="0" placeholder="—"><input type="date" id="m-advol-d"><span class="bdg b-off" id="m-advol-b">EMPTY</span></div>
+    <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap">
+      <button class="btn" id="m-apply">Apply &amp; recompute</button>
+      <button class="btn" id="m-clear">Clear all</button>
+      <button class="btn" id="m-share">Copy shareable link</button>
+    </div>
+    <div class="note">Values persist in the URL hash (no local storage) — bookmark the page after applying to keep them, dates included.</div>
+  </div>
+</details>
+
+<!-- ============ DOCTRINE ============ -->
+<details>
+  <summary>Doctrine, substitutions &amp; engineering notes</summary>
+  <div class="inner">
+    <div class="note" style="margin-bottom:10px">
+      Distilled from the public release notes of turintrader's TRKY 1001 DAY, VIX_TS_HA_WEEKLY and VIX_TS_SPXL_v3 (source code is invite-only; nothing here is copied — the architecture is rebuilt from his own changelogs and every threshold below is ours to validate, not his). Core doctrine: <b>classify regime before direction; tops are processes read off the vol curve and credit; bottoms are events read off breadth capitulation; the output is an exposure dial, not a prediction.</b>
+    </div>
+    <div class="tblwrap"><table class="doct">
+      <thead><tr><th>His input</th><th>TURIN implementation</th><th>Status</th></tr></thead>
+      <tbody>
+        <tr><td>VIX3M:VIX smoothed + adaptive zones (ATR/linreg, vol-adjusted)</td><td>CBOE VIX &amp; VIX3M history CSVs · EMA5 smooth · rolling 126d linreg mid ±1.5σ</td><td><span class="bdg b-live">LIVE</span></td></tr>
+        <tr><td>VIX 3m:1m minus 6m:1m curvature</td><td>(VIX3M − VIX6M)/VIX from CBOE VIX6M history — same orientation: low = steep contango</td><td><span class="bdg b-live">LIVE</span></td></tr>
+        <tr><td>Vol percentile gate (default 45)</td><td>VIX 252d percentile, threshold 45, gates fear-side vol signals</td><td><span class="bdg b-live">LIVE</span></td></tr>
+        <tr><td>HY credit total-return index, 10d trend (EMA→HMA)</td><td>HYG adjusted close (dividend-adjusted ≈ TR proxy) vs HMA(10)</td><td><span class="bdg b-proxy">PROXY</span></td></tr>
+        <tr><td>Credit-spread regime (z-score model)</td><td>FRED BAMLH0A0HYM2 HY OAS · 252d z · 20d Δ</td><td><span class="bdg b-live">LIVE</span></td></tr>
+        <tr><td>NYSE+NASDAQ cumulative A/D z regime</td><td>Auto: RSP/SPY equal-weight participation z (proxy) · Manual: paste true ADL z</td><td><span class="bdg b-proxy">PROXY</span> <span class="bdg b-manual">MANUAL</span></td></tr>
+        <tr><td>R3K % above 20d SMA (swing lows)</td><td>Manual input only — no keyless feed</td><td><span class="bdg b-manual">MANUAL</span></td></tr>
+        <tr><td>NYSE A/D volume ratio (major bottoms)</td><td>Manual input only — no keyless feed</td><td><span class="bdg b-manual">MANUAL</span></td></tr>
+        <tr><td>Ratio-adjusted 52w NHNL line</td><td>Manual input only — no keyless feed</td><td><span class="bdg b-manual">MANUAL</span></td></tr>
+        <tr><td>Custom VIX3M back to 1990 (variance interpolation)</td><td>Not replicable client-side; CBOE feed starts ~2009 — shorter sample, flagged</td><td><span class="bdg b-off">N/A</span></td></tr>
+        <tr><td>Hull cross entries on SPY/ES + QQQ/NDQ trend cross</td><td>HULL(55) on SPY, <b>event crossovers driving a state machine</b> + QQQ&gt;SMA50 confirm</td><td><span class="bdg b-live">LIVE</span></td></tr>
+        <tr><td>Weekly Heikin-Ashi 401k layer</td><td>SPY resampled weekly HA vs EMA10w, gated by regime — LT stance chip</td><td><span class="bdg b-live">LIVE</span></td></tr>
+      </tbody>
+    </table></div>
+    <div class="note" style="margin-top:10px">
+      <b>Engineering notes baked in from his own bug history:</b> entries fire on <b>crossover events, never state comparisons</b> (his Aug-23 TRKY fix — a state-based entry flattered his backtest for a year); <b>no forward references anywhere</b> (his SPXL lookahead_on leak); manual inputs expire rather than persist (the never-carry-forward rule); the composite renormalises when a layer is missing instead of pretending. His published thresholds were never independently audited — treat every default here as a hypothesis to validate on our own backfill before capital moves on it.
+    </div>
+  </div>
+</details>
+
+<!-- ============ FETCH LOG ============ -->
+<details>
+  <summary>Fetch log &amp; diagnostics</summary>
+  <div class="inner"><div id="fetchlog">idle</div></div>
+</details>
+
+<footer class="ftr">
+  <b>Sources:</b> CBOE index history CSVs (VIX, VIX3M, VIX6M) · FRED BAMLH0A0HYM2 · Yahoo Finance charts (SPY, HYG, RSP, QQQ) via CORS relay, Stooq fallback. All keyless, all fetched client-side on load, all timestamped above. US EOD data — dates are US market sessions.<br>
+  <b>Rules of the house:</b> nothing seeded, nothing remembered, unverified values are marked and excluded. Signals are inputs to judgment, not advice — CODEX decides, TURIN informs. Tactical equity-sleeve tool only; the metals core is out of scope by design.
+</footer>
+
+<script>
+/* ================================================================
+   TURIN v1.0 — Regime & Exposure Dial (Fable implementation)
+   Rebuilt from turintrader public release notes. House rules:
+   - crossover EVENTS, never state comparisons (TRKY Aug-23 lesson)
+   - no forward references / lookahead (SPXL v3 lesson)
+   - nothing seeded; unverified => excluded; manual inputs expire
+   ================================================================ */
+"use strict";
+
+/* ---------- config ---------- */
+const CFG = {
+  yahooRange: "3y",
+  smoothN: 5,          // EMA on TS ratio
+  zoneLen: 126,        // linreg + sigma window for adaptive zones
+  zoneMult: 1.5,
+  volPctGate: 45,      // his default vol percentile threshold
+  volPctLen: 252,
+  oasZLen: 252,
+  oasFastBps: 0.15,    // 20d OAS widening (pct pts) that flips credit negative
+  hmaCreditN: 10,      // HMA on HYG adjclose
+  hullN: 55,           // Hull on SPY
+  rspZLen: 126,
+  weights: { vol:.30, credit:.30, breadth:.25, trend:.15 },
+  dialHi: .35, dialLo: -.35,
+  manualMaxAgeTd: 3,   // trading days before a manual input expires
+  washoutPct20: 20, thrustAdvol: 9, nhnlNegative: 0,
+};
+
+/* ---------- state ---------- */
+const S = {
+  raw:{},            // symbol -> {dates:[], close:[], adj:[]}
+  cal:[],            // master calendar (SPY dates)
+  seq:{},            // aligned arrays on cal
+  manual:{},         // key -> {v, d}
+  meta:{},           // input -> {val, asof, source, status}
+  hist:null,         // computed history
+  today:null,
+};
+
+/* ---------- tiny utils ---------- */
+const $ = id => document.getElementById(id);
+const fmt = (x,d=2) => (x==null||!isFinite(x)) ? "—" : x.toFixed(d);
+const last = a => a && a.length ? a[a.length-1] : null;
+const lastFinite = a => { if(!a) return null; for(let i=a.length-1;i>=0;i--) if(isFinite(a[i])) return a[i]; return null; };
+const esc = s => String(s).replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;"}[c]));
+function log(msg, cls){ const el=$("fetchlog"); if(el.textContent==="idle") el.textContent="";
+  const line=document.createElement("div"); if(cls) line.className=cls;
+  line.textContent = new Date().toLocaleTimeString() + "  " + msg; el.appendChild(line); }
+
+/* ---------- indicators (all trailing windows only — no lookahead) ---------- */
+function sma(a,n){ const o=new Array(a.length).fill(NaN); let s=0,c=0;
+  for(let i=0;i<a.length;i++){ const v=a[i]; if(isFinite(v)){s+=v;c++;}
+    if(i>=n){ const w=a[i-n]; if(isFinite(w)){s-=w;c--;} }
+    if(c>=Math.min(n,Math.floor(n*0.8))+0 && i>=n-1) o[i]=s/c; } return o; }
+function ema(a,n){ const o=new Array(a.length).fill(NaN); const k=2/(n+1); let p=null;
+  for(let i=0;i<a.length;i++){ const v=a[i]; if(!isFinite(v)){o[i]=p==null?NaN:p; continue;}
+    p = p==null ? v : v*k + p*(1-k); o[i]=p; } return o; }
+function wma(a,n){ const o=new Array(a.length).fill(NaN); const den=n*(n+1)/2;
+  for(let i=n-1;i<a.length;i++){ let s=0,ok=true;
+    for(let j=0;j<n;j++){ const v=a[i-n+1+j]; if(!isFinite(v)){ok=false;break;} s+=v*(j+1); }
+    if(ok) o[i]=s/den; } return o; }
+function hma(a,n){ const h=Math.max(2,Math.round(n/2)), r=Math.max(2,Math.round(Math.sqrt(n)));
+  const w1=wma(a,h), w2=wma(a,n), diff=a.map((_,i)=> (isFinite(w1[i])&&isFinite(w2[i])) ? 2*w1[i]-w2[i] : NaN);
+  return wma(diff,r); }
+function rollStd(a,n){ const o=new Array(a.length).fill(NaN);
+  for(let i=n-1;i<a.length;i++){ let s=0,c=0;
+    for(let j=i-n+1;j<=i;j++){ const v=a[j]; if(isFinite(v)){s+=v;c++;} }
+    if(c<n*0.7) continue; const m=s/c; let q=0;
+    for(let j=i-n+1;j<=i;j++){ const v=a[j]; if(isFinite(v)) q+=(v-m)*(v-m); }
+    o[i]=Math.sqrt(q/c); } return o; }
+function rollZ(a,n){ const sd=rollStd(a,n), o=new Array(a.length).fill(NaN);
+  for(let i=n-1;i<a.length;i++){ let s=0,c=0;
+    for(let j=i-n+1;j<=i;j++){ const v=a[j]; if(isFinite(v)){s+=v;c++;} }
+    if(c<n*0.7||!isFinite(sd[i])||sd[i]===0) continue; o[i]=(a[i]-s/c)/sd[i]; } return o; }
+function rollPct(a,n){ const o=new Array(a.length).fill(NaN);
+  for(let i=n-1;i<a.length;i++){ const v=a[i]; if(!isFinite(v)) continue; let lt=0,c=0;
+    for(let j=i-n+1;j<=i;j++){ const w=a[j]; if(isFinite(w)){c++; if(w<v) lt++;} }
+    if(c>=n*0.7) o[i]=100*lt/c; } return o; }
+function linregMid(a,n){ const o=new Array(a.length).fill(NaN);
+  for(let i=n-1;i<a.length;i++){ let sx=0,sy=0,sxy=0,sxx=0,c=0;
+    for(let j=0;j<n;j++){ const v=a[i-n+1+j]; if(!isFinite(v)) continue;
+      sx+=j; sy+=v; sxy+=j*v; sxx+=j*j; c++; }
+    if(c<n*0.8) continue; const den=c*sxx-sx*sx; if(den===0) continue;
+    const b=(c*sxy-sx*sy)/den, a0=(sy-b*sx)/c; o[i]=a0+b*(n-1); } return o; }
+const crossover  = (a,b,i) => i>0 && isFinite(a[i])&&isFinite(b[i])&&isFinite(a[i-1])&&isFinite(b[i-1]) && a[i]>b[i] && a[i-1]<=b[i-1];
+const crossunder = (a,b,i) => i>0 && isFinite(a[i])&&isFinite(b[i])&&isFinite(a[i-1])&&isFinite(b[i-1]) && a[i]<b[i] && a[i-1]>=b[i-1];
+
+/* ---------- fetch layer: direct first, then CORS relays ---------- */
+const PROXIES = [
+  u => u, // direct
+  u => "https://corsproxy.io/?url=" + encodeURIComponent(u),
+  u => "https://api.allorigins.win/raw?url=" + encodeURIComponent(u),
+  u => "https://api.codetabs.com/v1/proxy?quest=" + encodeURIComponent(u),
+];
+async function fetchText(url, label){
+  for(let p=0;p<PROXIES.length;p++){
+    const via = p===0 ? "direct" : "relay"+p;
+    try{
+      const ctl = new AbortController(); const t = setTimeout(()=>ctl.abort(), 15000);
+      const r = await fetch(PROXIES[p](url), {signal:ctl.signal});
+      clearTimeout(t);
+      if(!r.ok) throw new Error("HTTP "+r.status);
+      const txt = await r.text();
+      if(!txt || txt.length < 40) throw new Error("empty body");
+      log(label+" ✓ via "+via+" ("+txt.length+"b)","ok");
+      return txt;
+    }catch(e){ log(label+" ✗ "+via+": "+e.message,"er"); }
+  }
+  return null;
+}
+
+/* ---------- parsers ---------- */
+function parseCboe(txt){ // DATE,OPEN,HIGH,LOW,CLOSE
+  const dates=[], close=[];
+  for(const line of txt.split(/\r?\n/)){
+    const c=line.split(",");
+    if(c.length<5) continue;
+    const d=c[0].trim(); if(!/^\d{4}-\d{2}-\d{2}$/.test(d) && !/^\d{2}\/\d{2}\/\d{4}$/.test(d)) continue;
+    const iso = d.includes("/") ? d.slice(6,10)+"-"+d.slice(0,2)+"-"+d.slice(3,5) : d;
+    const v=parseFloat(c[4]); if(!isFinite(v)) continue;
+    dates.push(iso); close.push(v);
+  }
+  return dates.length? {dates,close}: null;
+}
+function parseFred(txt){ // header then date,value ("." = missing)
+  const dates=[], close=[];
+  for(const line of txt.split(/\r?\n/)){
+    const c=line.split(",");
+    if(c.length<2) continue;
+    const d=c[0].trim(); if(!/^\d{4}-\d{2}-\d{2}$/.test(d)) continue;
+    const v=parseFloat(c[1]); if(!isFinite(v)) continue;
+    dates.push(d); close.push(v);
+  }
+  return dates.length? {dates,close}: null;
+}
+function parseYahoo(txt){
+  try{
+    const j=JSON.parse(txt); const r=j.chart && j.chart.result && j.chart.result[0];
+    if(!r || !r.timestamp) return null;
+    const qt=r.indicators.quote[0], q=qt.close;
+    const adjArr=(r.indicators.adjclose && r.indicators.adjclose[0].adjclose) || q;
+    const dates=[], close=[], adj=[], open=[], high=[], low=[];
+    for(let i=0;i<r.timestamp.length;i++){
+      if(!isFinite(q[i])) continue;
+      const dt=new Date(r.timestamp[i]*1000);
+      dates.push(dt.toISOString().slice(0,10));
+      close.push(q[i]); adj.push(isFinite(adjArr[i])?adjArr[i]:q[i]);
+      open.push(isFinite(qt.open&&qt.open[i])?qt.open[i]:q[i]);
+      high.push(isFinite(qt.high&&qt.high[i])?qt.high[i]:q[i]);
+      low.push(isFinite(qt.low&&qt.low[i])?qt.low[i]:q[i]);
+    }
+    return dates.length? {dates,close,adj,open,high,low}: null;
+  }catch(e){ return null; }
+}
+function parseStooq(txt){ // Date,Open,High,Low,Close,Volume
+  const dates=[], close=[], open=[], high=[], low=[];
+  for(const line of txt.split(/\r?\n/)){
+    const c=line.split(",");
+    if(c.length<5) continue;
+    const d=c[0].trim(); if(!/^\d{4}-\d{2}-\d{2}$/.test(d)) continue;
+    const v=parseFloat(c[4]); if(!isFinite(v)) continue;
+    dates.push(d); close.push(v);
+    open.push(parseFloat(c[1])||v); high.push(parseFloat(c[2])||v); low.push(parseFloat(c[3])||v);
+  }
+  return dates.length? {dates,close,adj:close.slice(),open,high,low}: null;
+}
+
+/* ---------- source definitions ---------- */
+const SOURCES = [
+  {key:"VIX",   label:"VIX close",            kind:"cboe",
+   url:"https://cdn.cboe.com/api/global/us_indices/daily_prices/VIX_History.csv",  src:"CBOE"},
+  {key:"VIX3M", label:"VIX3M close",          kind:"cboe",
+   url:"https://cdn.cboe.com/api/global/us_indices/daily_prices/VIX3M_History.csv",src:"CBOE"},
+  {key:"VIX6M", label:"VIX6M close",          kind:"cboe",
+   url:"https://cdn.cboe.com/api/global/us_indices/daily_prices/VIX6M_History.csv",src:"CBOE"},
+  {key:"OAS",   label:"HY OAS (BAMLH0A0HYM2)",kind:"fred",
+   url:"https://fred.stlouisfed.org/graph/fredgraph.csv?id=BAMLH0A0HYM2",          src:"FRED"},
+  {key:"SPY",   label:"SPY close",            kind:"yahoo", sym:"SPY",  stooq:"spy.us", src:"Yahoo"},
+  {key:"HYG",   label:"HYG adj close (TR proxy)", kind:"yahoo", sym:"HYG", stooq:"hyg.us", src:"Yahoo"},
+  {key:"RSP",   label:"RSP close",            kind:"yahoo", sym:"RSP",  stooq:"rsp.us", src:"Yahoo"},
+  {key:"QQQ",   label:"QQQ close",            kind:"yahoo", sym:"QQQ",  stooq:"qqq.us", src:"Yahoo"},
+];
+async function loadSource(s){
+  let parsed=null, srcNote=s.src;
+  if(s.kind==="yahoo"){
+    const u="https://query1.finance.yahoo.com/v8/finance/chart/"+s.sym+"?range="+CFG.yahooRange+"&interval=1d";
+    const t=await fetchText(u, s.key+" yahoo");
+    parsed = t && parseYahoo(t);
+    if(!parsed && s.stooq){
+      const t2=await fetchText("https://stooq.com/q/d/l/?s="+s.stooq+"&i=d", s.key+" stooq");
+      parsed = t2 && parseStooq(t2); if(parsed) srcNote="Stooq";
+    }
+  } else {
+    const t=await fetchText(s.url, s.key+" "+s.src.toLowerCase());
+    parsed = t && (s.kind==="cboe"? parseCboe(t) : parseFred(t));
+  }
+  if(parsed){ S.raw[s.key]=parsed; S.meta[s.key]={val:last(parsed.close), asof:last(parsed.dates), source:srcNote, status:"LIVE"}; }
+  else { S.meta[s.key]={val:null, asof:null, source:s.src, status:"UNVERIFIED"}; }
+}
+
+/* ---------- alignment: master calendar = SPY sessions (VIX fallback) ---------- */
+function align(){
+  const base = S.raw.SPY || S.raw.VIX;
+  if(!base){ S.cal=[]; return; }
+  S.cal = base.dates.slice();
+  const FF = 5; // forward-fill tolerance in calendar entries (covers FRED lag)
+  for(const s of SOURCES){
+    const r = S.raw[s.key]; if(!r) { S.seq[s.key]=null; continue; }
+    const map = new Map(); r.dates.forEach((d,i)=>map.set(d,i));
+    const out = new Array(S.cal.length).fill(NaN);
+    const outA = r.adj ? new Array(S.cal.length).fill(NaN) : null;
+    const outO = r.open ? new Array(S.cal.length).fill(NaN) : null;
+    const outH = r.high ? new Array(S.cal.length).fill(NaN) : null;
+    const outL = r.low  ? new Array(S.cal.length).fill(NaN) : null;
+    let lastIdx = -1, staleFor = 0;
+    for(let i=0;i<S.cal.length;i++){
+      if(map.has(S.cal[i])){ lastIdx = map.get(S.cal[i]); staleFor = 0; }
+      else staleFor++;
+      if(lastIdx>=0 && staleFor<=FF){
+        out[i]=r.close[lastIdx];
+        if(outA) outA[i]=r.adj[lastIdx];
+        if(outO) outO[i]=r.open[lastIdx];
+        if(outH) outH[i]=r.high[lastIdx];
+        if(outL) outL[i]=r.low[lastIdx];
+      }
+    }
+    S.seq[s.key]={close:out, adj:outA, open:outO, high:outH, low:outL};
+  }
+}
+
+/* ---------- manual internals: freshness ---------- */
+function tradingDaysBetween(isoOld, isoNew){
+  if(!isoOld||!isoNew) return Infinity;
+  let d=new Date(isoOld+"T12:00Z"); const end=new Date(isoNew+"T12:00Z"); let n=0;
+  while(d<end && n<60){ d.setUTCDate(d.getUTCDate()+1); const wd=d.getUTCDay(); if(wd!==0&&wd!==6) n++; }
+  return n;
+}
+function manualFresh(key){
+  const m=S.manual[key]; if(!m || !isFinite(m.v) || !m.d) return null;
+  const latest = last(S.cal) || new Date().toISOString().slice(0,10);
+  const age = tradingDaysBetween(m.d, latest);
+  return { v:m.v, d:m.d, age, fresh: age<=CFG.manualMaxAgeTd };
+}
+
+/* ---------- core compute ---------- */
+function compute(){
+  const n=S.cal.length; if(!n){ S.hist=null; S.today=null; return; }
+  const g = k => S.seq[k] ? S.seq[k].close : null;
+  const vix=g("VIX"), v3=g("VIX3M"), v6=g("VIX6M"), oas=g("OAS"),
+        spy=g("SPY"), rsp=g("RSP"), qqq=g("QQQ");
+  const hyg=S.seq.HYG ? (S.seq.HYG.adj||S.seq.HYG.close) : null;
+
+  /* — vol structure — */
+  let r=null,rSm=null,zoneUp=null,zoneDn=null,vixPct=null,curv=null;
+  if(vix&&v3){
+    r = vix.map((v,i)=> (isFinite(v)&&isFinite(v3[i])&&v>0)? v3[i]/v : NaN);
+    rSm = ema(r,CFG.smoothN);
+    const mid=linregMid(r,CFG.zoneLen), sd=rollStd(r,CFG.zoneLen);
+    zoneUp = mid.map((m,i)=> (isFinite(m)&&isFinite(sd[i]))? m+CFG.zoneMult*sd[i] : NaN);
+    zoneDn = mid.map((m,i)=> (isFinite(m)&&isFinite(sd[i]))? m-CFG.zoneMult*sd[i] : NaN);
+    vixPct = rollPct(vix,CFG.volPctLen);
+    if(v6) curv = vix.map((v,i)=> (isFinite(v)&&isFinite(v3[i])&&isFinite(v6[i])&&v>0)? (v3[i]-v6[i])/v : NaN);
+  }
+  const volScore = new Array(n).fill(NaN);
+  if(r) for(let i=0;i<n;i++){
+    if(!isFinite(r[i])||!isFinite(rSm[i])) continue;
+    const gateOK = !isFinite(vixPct[i]) || vixPct[i]>=CFG.volPctGate;
+    if(r[i]<1.0 || (isFinite(zoneDn[i]) && rSm[i]<zoneDn[i] && gateOK)) volScore[i]=-1;
+    else if(r[i]>=1.02 && i>0 && isFinite(rSm[i-1]) && rSm[i]>=rSm[i-1]) volScore[i]=1;
+    else volScore[i]=0;
+  }
+
+  /* — credit — */
+  let oasZ=null,oasD20=null,hygH=null;
+  const credScore=new Array(n).fill(NaN);
+  if(oas){ oasZ=rollZ(oas,CFG.oasZLen); oasD20=oas.map((v,i)=> (i>=20&&isFinite(v)&&isFinite(oas[i-20]))? v-oas[i-20]: NaN); }
+  if(hyg) hygH=hma(hyg,CFG.hmaCreditN);
+  for(let i=0;i<n;i++){
+    const hasO=oasZ&&isFinite(oasZ[i]), hasH=hyg&&hygH&&isFinite(hyg[i])&&isFinite(hygH[i]);
+    if(!hasO&&!hasH) continue;
+    let s=0;
+    const widening = hasO && (oasZ[i]>1 || (isFinite(oasD20[i])&&oasD20[i]>CFG.oasFastBps));
+    const hygDown  = hasH && hyg[i]<hygH[i];
+    const calm     = hasO && oasZ[i]<0;
+    const hygUp    = hasH && hyg[i]>hygH[i];
+    if(widening||hygDown) s=-1; else if((calm&&hygUp)||(calm&&!hasH)||(!hasO&&hygUp)) s=1;
+    credScore[i]=s;
+  }
+
+  /* — breadth (auto proxy; manual overlays live reading only) — */
+  let rs=null,rsZ=null,rsE=null;
+  const brScore=new Array(n).fill(NaN);
+  if(rsp&&spy){
+    rs = rsp.map((v,i)=> (isFinite(v)&&isFinite(spy[i])&&spy[i]>0)? v/spy[i]: NaN);
+    rsZ = rollZ(rs,CFG.rspZLen); rsE = ema(rs,20);
+    for(let i=0;i<n;i++){
+      if(!isFinite(rsZ[i])||!isFinite(rs[i])||!isFinite(rsE[i])) continue;
+      if(rsZ[i]<-1.5 || (rs[i]<rsE[i] && rsZ[i]<-0.5)) brScore[i]=-1;
+      else if(rs[i]>rsE[i] && rsZ[i]>-0.5) brScore[i]=1;
+      else brScore[i]=0;
+    }
+  }
+
+  /* — trend: Hull slope-turn EVENTS driving a state machine — */
+  let hull=null,hullLag=null,qqqUp=null;
+  const trState=new Array(n).fill(0), trScore=new Array(n).fill(NaN);
+  if(spy){
+    hull=hma(spy,CFG.hullN);
+    hullLag=hull.map((_,i)=> i>=2? hull[i-2]: NaN);
+    let st=0;
+    for(let i=0;i<n;i++){
+      if(crossover(hull,hullLag,i)) st=1;
+      else if(crossunder(hull,hullLag,i)) st=-1;
+      trState[i]=st;
+      if(isFinite(hull[i])&&isFinite(spy[i]))
+        trScore[i] = st===1 ? (spy[i]>hull[i]?1:0) : st===-1 ? (spy[i]<hull[i]?-1:0) : 0;
+    }
+    if(qqq){ const q50=sma(qqq,50); qqqUp=qqq.map((v,i)=> isFinite(v)&&isFinite(q50[i])? v>q50[i]: null); }
+  }
+
+  /* — composite oscillator + dial (renormalise on missing layers) — */
+  const layers=[["vol",volScore],["credit",credScore],["breadth",brScore],["trend",trScore]];
+  const osc=new Array(n).fill(NaN), dial=new Array(n).fill(NaN);
+  for(let i=0;i<n;i++){
+    let num=0,den=0;
+    for(const [k,arr] of layers){ if(isFinite(arr[i])){ num+=CFG.weights[k]*arr[i]; den+=CFG.weights[k]; } }
+    if(den>0){ osc[i]=num/den; dial[i]= osc[i]>=CFG.dialHi?1: osc[i]<=CFG.dialLo?-1:0; }
+  }
+
+  /* — event detection (all crossover-based) — */
+  const evTop=[], evSwh=[], evSwl=[], evBot=[];
+  const ones=new Array(n).fill(1);
+  for(let i=1;i<n;i++){
+    if(r&&crossunder(r,rSm,i)){
+      let wasHigh=false; for(let j=Math.max(0,i-10);j<=i;j++) if(isFinite(zoneUp[j])&&r[j]>zoneUp[j]) wasHigh=true;
+      const credConfirm = oasD20&&isFinite(oasD20[i])&&oasD20[i]>0.10;
+      if(wasHigh&&credConfirm) evTop.push(i); else if(wasHigh) evSwh.push(i);
+    }
+    if(rsZ&&isFinite(rsZ[i])&&isFinite(rsZ[i-1])&&rsZ[i-1]<-1.5&&rsZ[i]>=-1.5) evSwl.push(i);
+    if(r&&vixPct&&isFinite(vixPct[i])&&vixPct[i]>90&&crossover(r,ones,i)) evBot.push(i);
+  }
+
+  S.hist={n,r,rSm,zoneUp,zoneDn,vixPct,curv,oas,oasZ,oasD20,hyg,hygH,rs,rsZ,rsE,
+          spy,hull,qqqUp,trState,volScore,credScore,brScore,trScore,osc,dial,
+          evTop,evSwh,evSwl,evBot,vix,v3,v6};
+
+  /* — today’s reading, with manual overlays — */
+  const i=n-1;
+  const mAdl=manualFresh("adlz"), mPct=manualFresh("pct20"), mNhnl=manualFresh("nhnl"), mAdvol=manualFresh("advol");
+  let brToday = isFinite(brScore[i])? brScore[i] : NaN, brSrc="proxy (RSP/SPY)";
+  if(mAdl && mAdl.fresh){ brToday = mAdl.v>0.25?1: mAdl.v<-0.25?-1:0; brSrc="manual ADL z"; }
+  let num=0,den=0;
+  const use={vol:volScore[i],credit:credScore[i],breadth:brToday,trend:trScore[i]};
+  for(const k in use){ if(isFinite(use[k])){ num+=CFG.weights[k]*use[k]; den+=CFG.weights[k]; } }
+  const oscNow = den>0? num/den : NaN;
+  const dialNow = isFinite(oscNow)? (oscNow>=CFG.dialHi?1: oscNow<=CFG.dialLo?-1:0) : null;
+
+  const liveLayers=Object.values(use).filter(isFinite).length;
+  let conf = Math.round(100*liveLayers/4);
+  for(const m of [mAdl,mPct,mNhnl,mAdvol]) if(m&&m.fresh) conf=Math.min(100,conf+4);
+
+  /* flags now */
+  const near = (ev,k=3)=> ev.length && (n-1-ev[ev.length-1])<=k;
+  const inUpper = r&&isFinite(r[i])&&isFinite(zoneUp[i])&&r[i]>zoneUp[i];
+  const flags={
+    top: near(evTop)?["TRIGGERED", S.cal[last(evTop)]]: inUpper?["ARMED","ratio in complacency zone"]:["CLEAR",""],
+    swh: near(evSwh)?["TRIGGERED", S.cal[last(evSwh)]]: ["CLEAR",""],
+    swl: (mPct&&mPct.fresh&&mPct.v<CFG.washoutPct20)?["TRIGGERED","manual %>20d = "+mPct.v]:
+         near(evSwl)?["TRIGGERED", S.cal[last(evSwl)]]:
+         (rsZ&&isFinite(rsZ[i])&&rsZ[i]<-1.5)?["ARMED","proxy breadth z "+fmt(rsZ[i])]:["CLEAR",""],
+    bot: (mAdvol&&mAdvol.fresh&&mAdvol.v>=CFG.thrustAdvol)?["TRIGGERED","manual A/D vol "+mAdvol.v+":1"]:
+         near(evBot)?["TRIGGERED", S.cal[last(evBot)]]:
+         (vixPct&&isFinite(vixPct[i])&&vixPct[i]>85)?["ARMED","VIX pctile "+fmt(vixPct[i],0)]:["CLEAR",""],
+  };
+
+  /* LT weekly Heikin-Ashi layer */
+  let lt=null;
+  if(S.seq.SPY&&S.seq.SPY.open){
+    const wk=[]; let cur=null;
+    for(let j=0;j<n;j++){
+      const d=new Date(S.cal[j]+"T12:00Z");
+      const dow=(d.getUTCDay()+6)%7; const mon=new Date(d); mon.setUTCDate(d.getUTCDate()-dow);
+      const wkKey = mon.toISOString().slice(0,10);
+      if(!cur||cur.key!==wkKey){ cur={key:wkKey,o:S.seq.SPY.open[j],h:S.seq.SPY.high[j],l:S.seq.SPY.low[j],c:S.seq.SPY.close[j],d:S.cal[j]}; wk.push(cur); }
+      else{ cur.h=Math.max(cur.h,S.seq.SPY.high[j]); cur.l=Math.min(cur.l,S.seq.SPY.low[j]); cur.c=S.seq.SPY.close[j]; }
+    }
+    if(wk.length>12){
+      const haC=wk.map(w=>(w.o+w.h+w.l+w.c)/4);
+      const haO=[wk[0].o]; for(let j=1;j<wk.length;j++) haO.push((haO[j-1]+haC[j-1])/2);
+      const e10=ema(wk.map(w=>w.c),10);
+      const j=wk.length-1;
+      const bull = haC[j]>haO[j] && wk[j].c>e10[j];
+      const gated = (dialNow==null||dialNow>=0);
+      lt={stance: bull&&gated? "LONG":"FLAT", ha:bull, gate:gated, asof:wk[j].d};
+    }
+  }
+
+  S.today={i,oscNow,dialNow,conf,flags,brToday,brSrc,lt,
+           mAdl,mPct,mNhnl,mAdvol,use,
+           complacent: inUpper && vixPct && isFinite(vixPct[i]) && vixPct[i]<20};
+}
+
+/* ---------- playbook copy (paraphrased mapping; CODEX overlay rewrites it) ---------- */
+const PLAYBOOK = {
+  raw:{
+    "1": ["RISK ON","Full tactical exposure to the aggressive end of the equity sleeve. Bonds unattractive at this reading. (turintrader's own mapping extends this to LETFs — see CODEX overlay.)"],
+    "0": ["REDUCE","Trim long exposure and high-beta names, lift cash, favour short-maturity duration. Neither side of the market is being paid reliably."],
+    "-1":["DEFENSIVE","Stand aside from equities. Cash is held with a job: countertrend buys at capitulation flags. Long-maturity bonds become the risk asset."]
+  },
+  codex:{
+    "1": ["RISK ON","Equity sleeve at full tactical weight in aggressive unleveraged names. No LETFs, no futures — CODEX ban stands regardless of the dial. Metals core untouched."],
+    "0": ["REDUCE","Trim the high-beta sleeve, raise cash, keep powder for the flags below. Core positions and metals are out of scope — this dial only steers the liquid tactical book."],
+    "-1":["DEFENSIVE","Tactical sleeve to minimum. Cash is reserved for countertrend adds when SWING LOW / MAJOR BOTTOM trigger with fresh data. Do not touch the metals core; do not reach for leverage to 'make it back'."]
+  }
+};
+
+/* ---------- render ---------- */
+function badge(status){
+  const cls={LIVE:"b-live",PROXY:"b-proxy",MANUAL:"b-manual",STALE:"b-stale",UNVERIFIED:"b-stale",EMPTY:"b-off",WAIT:"b-wait"}[status]||"b-wait";
+  return '<span class="bdg '+cls+'">'+esc(status)+'</span>';
+}
+function setChip(id,score){
+  const el=$(id); if(!el) return;
+  if(!isFinite(score)){ el.className="chip c-off"; el.textContent="NO DATA"; return; }
+  el.className = "chip "+(score>0?"c-pos":score<0?"c-neg":"c-neu");
+  el.textContent = score>0?"+1 RISK ON": score<0?"−1 RISK OFF":"0 NEUTRAL";
+}
+function kvRow(k,x){ return '<div class="kv"><span class="k">'+esc(k)+'</span><span class="x">'+x+'</span></div>'; }
+
+function render(){
+  const H=S.hist, T=S.today;
+  const latest = last(S.cal);
+
+  /* master badge */
+  const liveCount = SOURCES.filter(s=>S.meta[s.key]&&S.meta[s.key].status==="LIVE").length;
+  const mb=$("masterbadge");
+  if(!H||!T){ mb.className="bdg b-stale"; mb.textContent="NO VERIFIED DATA"; }
+  else if(liveCount===SOURCES.length){ mb.className="bdg b-live"; mb.textContent="ALL FEEDS LIVE · "+latest; }
+  else { mb.className="bdg b-proxy"; mb.textContent=liveCount+"/"+SOURCES.length+" FEEDS · "+latest; }
+
+  /* hero */
+  if(T && T.dialNow!=null){
+    const d=String(T.dialNow);
+    const map = $("codextoggle").checked ? PLAYBOOK.codex : PLAYBOOK.raw;
+    const [word,text]=map[d];
+    const col = T.dialNow>0?"var(--pos)":T.dialNow<0?"var(--neg)":"var(--neu)";
+    $("stateword").textContent=word; $("stateword").style.color=col;
+    $("oscval").textContent=(T.oscNow>0?"+":"")+fmt(T.oscNow);
+    $("confval").textContent=T.conf+"%";
+    $("asof").textContent="US session "+latest+" · breadth via "+T.brSrc;
+    $("needle").style.left = (50 + 50*Math.max(-1,Math.min(1,T.oscNow)))/1 + "%";
+    $("pbtitle").textContent="Playbook · dial "+(T.dialNow>0?"+1":T.dialNow)+($("codextoggle").checked?" · CODEX overlay":" · his raw mapping");
+    $("pbtext").textContent=text + (T.complacent? " ⚠ Complacency cluster: ratio in upper zone with VIX <20th percentile — cheap vol tends to get cheaper, but this is where major-top fuel builds.":"");
+  } else {
+    $("stateword").textContent="NO SIGNAL"; $("stateword").style.color="var(--faint)";
+    $("pbtext").textContent="Not enough verified feeds to score the dial. Check the fetch log below — the engine will not fall back to remembered or seeded values.";
+  }
+  $("histnote").textContent = H? "backfill "+H.n+" sessions from "+S.cal[0] : "";
+
+  /* verified inputs table */
+  const rows=[];
+  for(const s of SOURCES){
+    const m=S.meta[s.key]||{};
+    rows.push("<tr><td>"+esc(s.label)+"</td><td class=v>"+ (m.val!=null? fmt(m.val, s.key==="OAS"?2:2):"—")
+      +"</td><td>"+(m.asof||"—")+"</td><td class=src>"+esc(m.source||"")+"</td><td>"+badge(m.status||"WAIT")+"</td></tr>");
+  }
+  if(H){
+    const i=H.n-1;
+    const drv=(name,val,note)=> "<tr><td>"+name+"</td><td class=v>"+val+"</td><td>"+latest+"</td><td class=src>"+note+"</td><td>"+badge("LIVE")+"</td></tr>";
+    if(H.r) rows.push(drv("VIX3M/VIX ratio", fmt(H.r[i],3), "derived · <1 = backwardation"));
+    if(H.curv) rows.push(drv("Curve curvature (3M−6M)/VIX", fmt(H.curv[i],3), "derived · low = steep contango"));
+    if(H.vixPct) rows.push(drv("VIX 252d percentile", fmt(H.vixPct[i],0), "derived · gate at "+CFG.volPctGate));
+  }
+  for(const [key,label] of [["pct20","R3K % > 20d SMA"],["adlz","NYSE cum A/D 20d z"],["nhnl","52w NHNL (ratio-adj)"],["advol","NYSE up/down volume"]]){
+    const m=manualFresh(key);
+    if(m) rows.push("<tr><td>"+label+"</td><td class=v>"+fmt(m.v,2)+"</td><td>"+m.d+"</td><td class=src>pasted from TradingView</td><td>"
+      +badge(m.fresh?"MANUAL":"STALE")+(m.fresh?"":" <span class='src'>expired · excluded</span>")+"</td></tr>");
+  }
+  $("databody").innerHTML=rows.join("") || "<tr><td colspan=5 style='color:var(--neg)'>all feeds failed — see fetch log</td></tr>";
+
+  /* layer cards */
+  if(H&&T){
+    const i=H.n-1;
+    setChip("chip-vol", T.use.vol);
+    $("kv-vol").innerHTML =
+      kvRow("VIX3M/VIX", H.r? fmt(H.r[i],3):"—") +
+      kvRow("smoothed", H.rSm? fmt(H.rSm[i],3):"—") +
+      kvRow("zone", H.r&&isFinite(H.zoneUp[i])? (H.r[i]>H.zoneUp[i]?"COMPLACENCY":H.r[i]<H.zoneDn[i]?"FEAR":"mid"):"—") +
+      kvRow("VIX pctile / gate "+CFG.volPctGate, H.vixPct? fmt(H.vixPct[i],0):"—");
+    setChip("chip-credit", T.use.credit);
+    $("kv-credit").innerHTML =
+      kvRow("HY OAS", H.oas? fmt(H.oas[i],2)+"%":"—") +
+      kvRow("252d z", H.oasZ? fmt(H.oasZ[i]):"—") +
+      kvRow("Δ20d", H.oasD20&&isFinite(H.oasD20[i])? (H.oasD20[i]>0?"+":"")+fmt(H.oasD20[i]):"—") +
+      kvRow("HYG vs HMA10", H.hyg&&H.hygH&&isFinite(H.hygH[i])? (H.hyg[i]>H.hygH[i]?"above ↑":"below ↓"):"—");
+    setChip("chip-breadth", T.use.breadth);
+    $("kv-breadth").innerHTML =
+      kvRow("source", esc(T.brSrc)) +
+      kvRow("RSP/SPY z", H.rsZ? fmt(H.rsZ[i]):"—") +
+      kvRow("manual ADL z", T.mAdl? fmt(T.mAdl.v)+(T.mAdl.fresh?"":" (stale)"):"—") +
+      kvRow("manual %>20d", T.mPct? fmt(T.mPct.v,1)+(T.mPct.fresh?"":" (stale)"):"—");
+    setChip("chip-trend", T.use.trend);
+    $("kv-trend").innerHTML =
+      kvRow("Hull("+CFG.hullN+") state", H.trState[i]===1?"LONG ↑":H.trState[i]===-1?"DOWN ↓":"flat") +
+      kvRow("SPY vs Hull", H.hull&&isFinite(H.hull[i])? (H.spy[i]>H.hull[i]?"above":"below"):"—") +
+      kvRow("QQQ > SMA50", H.qqqUp&&H.qqqUp[i]!=null? (H.qqqUp[i]?"yes":"no"):"—") +
+      kvRow("last slope turn", (function(){ for(let j=H.n-1;j>0;j--) if(H.trState[j]!==H.trState[j-1]) return S.cal[j]; return "—"; })());
+  }
+
+  /* flags */
+  if(T){
+    const F=[["flag-top","top"],["flag-swh","swh"],["flag-swl","swl"],["flag-bot","bot"]];
+    for(const [id,k] of F){
+      const [st,note]=T.flags[k]; const el=$(id);
+      el.className="flag "+(st==="TRIGGERED"?( (k==="swl"||k==="bot")?"f-buy f-on":"f-trig"):st==="ARMED"?"f-armed":"f-clear")+((k==="swl"||k==="bot")?" f-buy":"");
+      el.querySelector(".fs").textContent=st;
+      el.querySelector(".fd").textContent=note;
+    }
+    const lt=T.lt;
+    $("ltrow").innerHTML = lt?
+      '<span class="bdg '+(lt.stance==="LONG"?"b-live":"b-wait")+'">LT WEEKLY (HA·EMA10·regime-gated): '+lt.stance+'</span>'+
+      '<span class="bdg b-wait">HA '+(lt.ha?"bull":"bear")+' · gate '+(lt.gate?"open":"shut")+' · wk of '+lt.asof+'</span>' : "";
+  }
+
+  drawAll();
+}
+
+/* ---------- charts (hand-rolled canvas, no deps) ---------- */
+function prepCanvas(id){
+  const c=$(id); if(!c) return null;
+  const dpr=window.devicePixelRatio||1;
+  const w=c.clientWidth||c.parentElement.clientWidth||600, h=parseInt(c.getAttribute("height"))||160;
+  c.width=w*dpr; c.height=h*dpr; c.style.height=h+"px";
+  const x=c.getContext("2d"); x.scale(dpr,dpr);
+  x.clearRect(0,0,w,h);
+  return {x,w,h};
+}
+function extent(arrs,a,b){
+  let lo=Infinity,hi=-Infinity;
+  for(const arr of arrs){ if(!arr) continue;
+    for(let i=a;i<=b;i++){ const v=arr[i]; if(isFinite(v)){ if(v<lo)lo=v; if(v>hi)hi=v; } } }
+  if(!isFinite(lo)){lo=0;hi=1;} if(lo===hi){lo-=1;hi+=1;}
+  const pad=(hi-lo)*0.08; return [lo-pad,hi+pad];
+}
+function plotLine(P,arr,a,b,lo,hi,color,width,dash){
+  const {x,w,h}=P; x.strokeStyle=color; x.lineWidth=width||1.4;
+  x.setLineDash(dash||[]);
+  x.beginPath(); let pen=false;
+  for(let i=a;i<=b;i++){
+    const v=arr[i]; if(!isFinite(v)){pen=false;continue;}
+    const px=(i-a)/(b-a)*(w-46), py=h-6-((v-lo)/(hi-lo))*(h-14);
+    if(pen) x.lineTo(px,py); else {x.moveTo(px,py); pen=true;}
+  }
+  x.stroke(); x.setLineDash([]);
+  const lv=lastFinite(arr.slice(a,b+1));
+  if(lv!=null){ x.fillStyle=color; x.font="10px JetBrains Mono";
+    x.fillText(fmt(lv, hi-lo<2?3:1), w-44, h-6-((lv-lo)/(hi-lo))*(h-14)+3); }
+}
+function hline(P,val,lo,hi,color,dash){
+  const {x,w,h}=P; if(val<lo||val>hi) return;
+  const py=h-6-((val-lo)/(hi-lo))*(h-14);
+  x.strokeStyle=color; x.setLineDash(dash||[4,4]); x.lineWidth=1;
+  x.beginPath(); x.moveTo(0,py); x.lineTo(w-46,py); x.stroke(); x.setLineDash([]);
+}
+function markers(P,idxs,arr,a,b,lo,hi,color,up){
+  const {x,w,h}=P; x.fillStyle=color;
+  for(const i of idxs){ if(i<a||i>b||!isFinite(arr[i])) continue;
+    const px=(i-a)/(b-a)*(w-46), py=h-6-((arr[i]-lo)/(hi-lo))*(h-14);
+    x.beginPath();
+    if(up){ x.moveTo(px,py+10); x.lineTo(px-4,py+16); x.lineTo(px+4,py+16); }
+    else  { x.moveTo(px,py-10); x.lineTo(px-4,py-16); x.lineTo(px+4,py-16); }
+    x.closePath(); x.fill(); }
+}
+function spark(id,arr,a,b,color,zero){
+  const P=prepCanvas(id); if(!P||!arr) return;
+  const [lo,hi]=extent([arr],a,b);
+  if(zero!=null) hline(P,zero,lo,hi,"rgba(139,133,120,.4)");
+  plotLine(P,arr,a,b,lo,hi,color,1.4);
+}
+function drawAll(){
+  const H=S.hist; if(!H) return;
+  const b=H.n-1, a=Math.max(0, b-540);
+  if(b-a<10) return;
+
+  /* SPY + hull + ribbon */
+  let P=prepCanvas("ch-spy");
+  if(P&&H.spy){
+    const [lo,hi]=extent([H.spy,H.hull],a,b);
+    for(let i=a;i<=b;i++){
+      const d=H.dial[i]; if(!isFinite(d)) continue;
+      P.x.fillStyle = d>0?"rgba(62,207,122,.10)": d<0?"rgba(255,77,77,.12)":"rgba(245,181,50,.08)";
+      const px=(i-a)/(b-a)*(P.w-46);
+      P.x.fillRect(px,0,Math.max(1,(P.w-46)/(b-a)+0.8),P.h);
+    }
+    plotLine(P,H.spy,a,b,lo,hi,"#e9e4d8",1.5);
+    plotLine(P,H.hull,a,b,lo,hi,"#ff6b2b",1.6);
+    markers(P,H.evTop,H.spy,a,b,lo,hi,"#ff4d4d",false);
+    markers(P,H.evSwh,H.spy,a,b,lo,hi,"#f5b532",false);
+    markers(P,H.evSwl,H.spy,a,b,lo,hi,"#3ecf7a",true);
+    markers(P,H.evBot,H.spy,a,b,lo,hi,"#4dc3ff",true);
+  }
+  /* TS ratio */
+  P=prepCanvas("ch-ts");
+  if(P&&H.r){
+    const [lo,hi]=extent([H.r,H.zoneUp,H.zoneDn],a,b);
+    hline(P,1.0,lo,hi,"rgba(255,77,77,.7)",[2,3]);
+    plotLine(P,H.zoneUp,a,b,lo,hi,"rgba(139,133,120,.55)",1,[5,4]);
+    plotLine(P,H.zoneDn,a,b,lo,hi,"rgba(139,133,120,.55)",1,[5,4]);
+    plotLine(P,H.r,a,b,lo,hi,"#4dc3ff",1.3);
+    plotLine(P,H.rSm,a,b,lo,hi,"#ff6b2b",1.6);
+  }
+  /* osc strip */
+  P=prepCanvas("ch-osc");
+  if(P&&H.osc){
+    const lo=-1.05,hi=1.05;
+    hline(P,CFG.dialHi,lo,hi,"rgba(62,207,122,.5)");
+    hline(P,CFG.dialLo,lo,hi,"rgba(255,77,77,.5)");
+    hline(P,0,lo,hi,"rgba(139,133,120,.35)",[2,4]);
+    const {x,w,h}=P;
+    for(let i=a;i<=b;i++){
+      const v=H.osc[i]; if(!isFinite(v)) continue;
+      const px=(i-a)/(b-a)*(w-46), py=h-6-((v-lo)/(hi-lo))*(h-14), py0=h-6-((0-lo)/(hi-lo))*(h-14);
+      x.strokeStyle = v>=CFG.dialHi?"#3ecf7a": v<=CFG.dialLo?"#ff4d4d":"#f5b532";
+      x.beginPath(); x.moveTo(px,py0); x.lineTo(px,py); x.stroke();
+    }
+  }
+  /* credit */
+  P=prepCanvas("ch-credit");
+  if(P&&(H.oasZ||H.curv)){
+    const [lo,hi]=extent([H.oasZ,H.curv],a,b);
+    hline(P,0,lo,hi,"rgba(139,133,120,.35)",[2,4]);
+    hline(P,1,lo,hi,"rgba(255,77,77,.4)");
+    if(H.oasZ) plotLine(P,H.oasZ,a,b,lo,hi,"#ff4d4d",1.4);
+    if(H.curv) plotLine(P,H.curv,a,b,lo,hi,"#c792ea",1.2);
+  }
+  /* card sparks */
+  spark("spark-vol",H.r,a,b,"#4dc3ff",1.0);
+  spark("spark-credit",H.oasZ,a,b,"#ff4d4d",0);
+  spark("spark-breadth",H.rsZ,a,b,"#3ecf7a",0);
+  spark("spark-trend",H.hull,a,b,"#ff6b2b",null);
+}
+
+/* ---------- manual inputs + URL-hash persistence (no local storage) ---------- */
+const MKEYS=["pct20","adlz","nhnl","advol"];
+function readManualForm(){
+  for(const k of MKEYS){
+    const v=parseFloat($("m-"+k).value), d=$("m-"+k+"-d").value;
+    if(isFinite(v)&&d) S.manual[k]={v,d}; else delete S.manual[k];
+  }
+}
+function writeManualForm(){
+  for(const k of MKEYS){
+    const m=S.manual[k];
+    $("m-"+k).value = m? m.v : "";
+    $("m-"+k+"-d").value = m? m.d : "";
+    const mf=manualFresh(k), bd=$("m-"+k+"-b");
+    bd.className="bdg "+(mf? (mf.fresh?"b-manual":"b-stale"):"b-off");
+    bd.textContent = mf? (mf.fresh?"FRESH":"STALE "+mf.age+"td"):"EMPTY";
+  }
+}
+function hashSave(){
+  const obj={};
+  if(Object.keys(S.manual).length) obj.m=S.manual;
+  const s=Object.keys(obj).length? "#"+encodeURIComponent(JSON.stringify(obj)) : "";
+  history.replaceState(null,"",location.pathname+location.search+s);
+}
+function hashLoad(){
+  try{
+    if(location.hash.length>2){
+      const o=JSON.parse(decodeURIComponent(location.hash.slice(1)));
+      if(o.m) for(const k of MKEYS) if(o.m[k]&&isFinite(o.m[k].v)&&/^\d{4}-\d{2}-\d{2}$/.test(o.m[k].d)) S.manual[k]=o.m[k];
+    }
+  }catch(e){ log("hash parse failed: "+e.message,"er"); }
+}
+
+/* ---------- boot ---------- */
+async function loadAll(){
+  $("masterbadge").className="bdg b-wait"; $("masterbadge").textContent="FETCHING…";
+  log("— refresh started —");
+  await Promise.allSettled(SOURCES.map(loadSource));
+  align(); compute(); writeManualForm(); render();
+}
+document.addEventListener("DOMContentLoaded", ()=>{
+  hashLoad(); writeManualForm();
+  $("refreshbtn").addEventListener("click", loadAll);
+  $("codextoggle").addEventListener("change", render);
+  $("m-apply").addEventListener("click", ()=>{ readManualForm(); hashSave(); compute(); writeManualForm(); render(); });
+  $("m-clear").addEventListener("click", ()=>{ S.manual={}; hashSave(); compute(); writeManualForm(); render(); });
+  $("m-share").addEventListener("click", async ()=>{
+    readManualForm(); hashSave();
+    try{ await navigator.clipboard.writeText(location.href); $("m-share").textContent="Copied ✓"; }
+    catch(e){ $("m-share").textContent="Copy failed — use URL bar"; }
+    setTimeout(()=>$("m-share").textContent="Copy shareable link",2000);
+  });
+  window.addEventListener("resize", ()=>{ if(S.hist) drawAll(); });
+  loadAll();
+});
+</script>
+</body>
+</html>
